@@ -1,0 +1,485 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  /* Godot blue color palette */
+  --ifm-color-primary: #478cbf;
+  --ifm-color-primary-dark: #3d7ca9;
+  --ifm-color-primary-darker: #3a759f;
+  --ifm-color-primary-darkest: #306083;
+  --ifm-color-primary-light: #5b9bc8;
+  --ifm-color-primary-lighter: #67a2cc;
+  --ifm-color-primary-lightest: #8ab7d8;
+
+  /* Background colors */
+  --ifm-background-color: #fafafa;
+  --ifm-background-surface-color: #ffffff;
+
+  /* Text colors */
+  --ifm-font-color-base: #3a3a3a;
+
+  /* Code */
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  /* Hero background */
+  --hero-background: #f0f4f8;
+  --hero-pattern: rgba(71, 140, 191, 0.05);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #6ca8d1;
+  --ifm-color-primary-dark: #52a0cd;
+  --ifm-color-primary-darker: #4a9dcc;
+  --ifm-color-primary-darkest: #3892c6;
+  --ifm-color-primary-light: #86b4d5;
+  --ifm-color-primary-lighter: #8eb8d7;
+  --ifm-color-primary-lightest: #afc8df;
+
+  --ifm-background-color: #1a1a1a;
+  --ifm-background-surface-color: #242424;
+
+  /* Text colors for better contrast in dark mode */
+  --ifm-font-color-base: #e8e8e8;
+  --ifm-font-color-secondary: #d0d0d0;
+  --ifm-heading-color: #ffffff;
+
+  --hero-background: #1e2a35;
+  --hero-pattern: rgba(108, 168, 209, 0.05);
+
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Godot brand colors */
+.godot-blue {
+  color: #478cbf;
+}
+
+.godot-dark-blue {
+  color: #25567b;
+}
+
+/* Hero section with Godot theme */
+.hero {
+  background: var(--hero-background);
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 35px,
+      var(--hero-pattern) 35px,
+      var(--hero-pattern) 70px
+    );
+  color: var(--ifm-font-color-base);
+  padding: 4rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero__title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-primary-darkest);
+}
+
+[data-theme='dark'] .hero__title {
+  color: var(--ifm-color-primary-light);
+}
+
+.hero__subtitle {
+  font-size: 1.4rem;
+  margin-bottom: 2rem;
+  color: var(--ifm-color-primary-darker);
+  font-weight: 400;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+[data-theme='dark'] .hero__subtitle {
+  color: var(--ifm-color-primary-lighter);
+}
+
+/* Code block styling */
+pre code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background-color: transparent;
+}
+
+/* Syntax highlighting for better visibility */
+.prism-code {
+  font-size: 0.95rem !important;
+}
+
+/* GDScript syntax highlighting improvements */
+.prism-code .token.keyword {
+  color: #ff7085;
+}
+
+.prism-code .token.function {
+  color: #66d9ef;
+}
+
+.prism-code .token.string {
+  color: #a6e22e;
+}
+
+.prism-code .token.comment {
+  color: #6a737d;
+  font-style: italic;
+}
+
+/* Light theme code colors */
+[data-theme='light'] .token.keyword {
+  color: #d73a49;
+}
+
+[data-theme='light'] .token.string {
+  color: #032f62;
+}
+
+[data-theme='light'] .token.function {
+  color: #6f42c1;
+}
+
+[data-theme='light'] .token.comment {
+  color: #6a737d;
+  font-style: italic;
+}
+
+[data-theme='light'] .token.operator {
+  color: #d73a49;
+}
+
+[data-theme='light'] .token.class-name {
+  color: #22863a;
+}
+
+/* Table styling */
+table {
+  display: table;
+  width: 100%;
+}
+
+table th {
+  background-color: var(--ifm-color-primary-lightest);
+}
+
+[data-theme='dark'] table th {
+  background-color: var(--ifm-color-primary-darkest);
+}
+
+/* Admonition styling */
+.admonition {
+  border-radius: 8px;
+}
+
+/* Feature cards */
+.features {
+  padding: 3rem 0;
+  background: var(--ifm-background-color);
+}
+
+.feature {
+  padding: 2rem;
+  text-align: center;
+  transition: transform 0.2s ease-in-out;
+}
+
+.feature:hover {
+  transform: translateY(-5px);
+}
+
+.feature__icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-primary);
+  display: block;
+}
+
+.feature__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-primary-darkest);
+}
+
+.feature__description {
+  font-size: 1rem;
+  color: var(--ifm-font-color-base);
+  line-height: 1.6;
+}
+
+/* Feature cards */
+.feature-card {
+  padding: 1.5rem;
+  border-radius: 8px;
+  background: var(--ifm-card-background-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Buttons with Godot theme */
+.button {
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+
+.button--primary {
+  background-color: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: white;
+}
+
+.button--primary:hover {
+  background-color: var(--ifm-color-primary-dark);
+  border-color: var(--ifm-color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.button--secondary {
+  color: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  background-color: transparent;
+}
+
+.button--secondary:hover {
+  background-color: var(--ifm-color-primary);
+  color: white;
+  transform: translateY(-2px);
+}
+
+.button--lg {
+  font-size: 1.2rem;
+  padding: 0.75rem 2rem;
+}
+
+/* Navigation bar adjustments */
+.navbar {
+  background-color: var(--ifm-background-surface-color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.navbar__title {
+  font-weight: 700;
+  color: var(--ifm-color-primary-darkest);
+}
+
+/* Footer styling */
+.footer {
+  background-color: rgb(30, 60, 90);
+  background-image: linear-gradient(135deg, rgb(30, 60, 90) 0%, rgb(25, 50, 75) 100%);
+  color: white;
+}
+
+.footer--dark {
+  background-color: rgb(25, 50, 75);
+  background-image: linear-gradient(135deg, rgb(25, 50, 75) 0%, rgb(20, 40, 60) 100%);
+  color: white;
+}
+
+.footer__title {
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.footer__link-item {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+.footer__link-item:hover {
+  color: white;
+  text-decoration: underline;
+}
+
+.footer__copyright {
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Dark mode footer - keep same as light mode */
+[data-theme='dark'] .footer__title {
+  color: white;
+}
+
+[data-theme='dark'] .footer__link-item {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme='dark'] .footer__link-item:hover {
+  color: white;
+}
+
+[data-theme='dark'] .footer__copyright {
+  color: rgba(255, 255, 255, 0.8);
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Links */
+a {
+  color: var(--ifm-color-primary);
+  font-weight: 500;
+}
+
+a:hover {
+  color: var(--ifm-color-primary-dark);
+  text-decoration: underline;
+}
+
+/* Cards and surfaces */
+.card {
+  background-color: var(--ifm-background-surface-color);
+  border: 1px solid rgba(71, 140, 191, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Homepage specific styles */
+.homepage-section {
+  padding: 4rem 0;
+  background-color: var(--ifm-background-color);
+}
+
+.homepage-section:nth-child(odd) {
+  background-color: var(--hero-background);
+}
+
+.section__title {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+  color: var(--ifm-color-primary-darkest);
+  font-weight: 700;
+}
+
+/* Quick links section */
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.quick-link-card {
+  background: var(--ifm-background-surface-color);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.quick-link-card:hover {
+  border-color: var(--ifm-color-primary);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  text-decoration: none;
+  color: inherit;
+}
+
+.quick-link-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.quick-link-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-primary-darkest);
+}
+
+/* Dark mode button fixes for better visibility */
+[data-theme='dark'] .button--secondary {
+  color: var(--ifm-color-primary-light);
+  border-color: var(--ifm-color-primary-light);
+  background-color: rgba(108, 168, 209, 0.1);
+}
+
+[data-theme='dark'] .button--secondary:hover {
+  background-color: var(--ifm-color-primary-light);
+  color: var(--ifm-background-color);
+  border-color: var(--ifm-color-primary-light);
+}
+
+/* Dark mode text color fixes for documentation pages */
+[data-theme='dark'] .markdown p,
+[data-theme='dark'] .markdown li,
+[data-theme='dark'] .markdown td,
+[data-theme='dark'] .markdown blockquote {
+  color: #e8e8e8;
+}
+
+[data-theme='dark'] .markdown h1,
+[data-theme='dark'] .markdown h2,
+[data-theme='dark'] .markdown h3,
+[data-theme='dark'] .markdown h4,
+[data-theme='dark'] .markdown h5,
+[data-theme='dark'] .markdown h6 {
+  color: #ffffff;
+}
+
+[data-theme='dark'] .markdown strong,
+[data-theme='dark'] .markdown b {
+  color: #f0f0f0;
+}
+
+[data-theme='dark'] .markdown code {
+  color: #f0f0f0;
+}
+
+/* Dark mode table text */
+[data-theme='dark'] .markdown table {
+  color: #e8e8e8;
+}
+
+[data-theme='dark'] .markdown th {
+  color: #ffffff;
+}
+
+/* Search bar styling */
+.navbar__search-input {
+  border-radius: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .hero__title {
+    font-size: 2rem;
+  }
+
+  .hero__subtitle {
+    font-size: 1.1rem;
+  }
+
+  .quick-links {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}

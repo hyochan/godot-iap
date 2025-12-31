@@ -176,8 +176,13 @@ jobs:
       - name: Commit version bump and create tag
         run: |
           git add Example/addons/godot-iap/plugin.cfg
-          git commit -m "chore(release): ${{ steps.version.outputs.VERSION }}"
-          git tag ${{ steps.version.outputs.VERSION }}
+          # Only commit if there are staged changes
+          if git diff --cached --quiet; then
+            echo "No version changes to commit (version already set)"
+          else
+            git commit -m "chore(release): ${{ steps.version.outputs.VERSION }}"
+          fi
+          git tag -f ${{ steps.version.outputs.VERSION }}
           git push --follow-tags
 
       - name: Create Release

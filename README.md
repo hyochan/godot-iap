@@ -3,9 +3,11 @@
 <div align="center">
   <img src="https://github.com/user-attachments/assets/cc7f363a-43a9-470c-bde7-2f63985a9f46"" width="200" alt="godot-iap logo" />
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![CI](https://img.shields.io/github/actions/workflow/status/hyochan/godot-iap/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/hyochan/godot-iap/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/hyochan/godot-iap?style=flat-square)](https://github.com/hyochan/godot-iap/releases)
 [![Godot 4.3+](https://img.shields.io/badge/Godot-4.3+-blue?style=flat-square&logo=godot-engine)](https://godotengine.org)
 [![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
 A comprehensive in-app purchase plugin for Godot 4.x that conforms to the <a href="https://openiap.dev">Open IAP specification</a>
 

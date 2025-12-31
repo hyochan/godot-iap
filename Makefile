@@ -180,7 +180,8 @@ TEST_ADDON_DIR := $(TEST_PROJECT_DIR)/addons/godot-iap
 TEST_IOS_EXPORT_DIR := $(TEST_PROJECT_DIR)/ios
 
 # Prepare TestProject addon directory with built binaries (mimics release zip structure)
-test-setup: android ios
+# Uses existing iOS frameworks from Example (skip slow iOS build)
+test-setup: android
 	@echo "$(GREEN)Setting up TestProject with built binaries...$(NC)"
 	@mkdir -p $(TEST_ADDON_DIR)/android
 	@mkdir -p $(TEST_ADDON_DIR)/bin/ios
@@ -207,9 +208,14 @@ test-setup: android ios
 	echo "[dependencies]" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
 	echo "local=[]" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
 	echo "remote=[\"com.android.billingclient:billing:7.1.1\", \"io.github.hyochan.openiap:openiap-google:$$OPENIAP_VERSION\"]" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap
-	@echo "$(GREEN)Copying iOS frameworks...$(NC)"
-	@cp -R $(BIN_DIR)/ios/GodotIap.framework $(TEST_ADDON_DIR)/bin/ios/
-	@cp -R $(BIN_DIR)/ios/SwiftGodotRuntime.framework $(TEST_ADDON_DIR)/bin/ios/
+	@echo "$(GREEN)Copying iOS frameworks from Example...$(NC)"
+	@if [ -d "$(BIN_DIR)/ios/GodotIap.framework" ]; then \
+		cp -R $(BIN_DIR)/ios/GodotIap.framework $(TEST_ADDON_DIR)/bin/ios/; \
+		cp -R $(BIN_DIR)/ios/SwiftGodotRuntime.framework $(TEST_ADDON_DIR)/bin/ios/; \
+	else \
+		echo "$(RED)iOS frameworks not found. Run 'make ios' first.$(NC)"; \
+		exit 1; \
+	fi
 	@echo "$(GREEN)Creating GDExtension config...$(NC)"
 	@echo '[configuration]' > $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
 	@echo 'entry_symbol = "godot_iap_entry_point"' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension

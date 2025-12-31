@@ -30,7 +30,7 @@ YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
 
-.PHONY: all setup ios ios-build android clean help run-android run-ios export-ios export-android
+.PHONY: all setup ios ios-build android clean help run-android run-ios export-ios export-android test-setup test-android test-ios export-test-android export-test-ios
 
 help:
 	@echo "GodotIap Build System"
@@ -42,11 +42,15 @@ help:
 	@echo "  make all           - Build everything"
 	@echo "  make clean         - Clean all build artifacts"
 	@echo ""
-	@echo "Run commands:"
+	@echo "Run commands (Example - development):"
 	@echo "  make run-android   - Build, export APK and install on connected device"
 	@echo "  make run-ios       - Export iOS project and open in Xcode"
 	@echo "  make export-ios    - Export iOS Xcode project only"
 	@echo "  make export-android - Export Android APK only"
+	@echo ""
+	@echo "Test commands (TestProject - release testing):"
+	@echo "  make test-android  - Copy binaries to TestProject and run on Android"
+	@echo "  make test-ios      - Copy binaries to TestProject and open in Xcode"
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  GODOT_VERSION  - Godot version to use (default: $(GODOT_VERSION))"
@@ -161,6 +165,99 @@ patch-ios-project:
 run-ios: export-ios
 	@echo "$(GREEN)Opening Xcode...$(NC)"
 	@open $(IOS_EXPORT_DIR)/Martie.xcodeproj
+	@echo ""
+	@echo "$(YELLOW)In Xcode:$(NC)"
+	@echo "  1. Select your connected iOS device"
+	@echo "  2. Press Cmd+R to build and run"
+	@echo "  3. Trust the developer certificate on your device if needed"
+
+# ============================================
+# TestProject - Release Testing
+# ============================================
+
+TEST_PROJECT_DIR := $(PROJECT_ROOT)/TestProject
+TEST_ADDON_DIR := $(TEST_PROJECT_DIR)/addons/godot-iap
+TEST_IOS_EXPORT_DIR := $(TEST_PROJECT_DIR)/ios
+
+# Prepare TestProject addon directory with built binaries (mimics release zip structure)
+test-setup: android ios
+	@echo "$(GREEN)Setting up TestProject with built binaries...$(NC)"
+	@mkdir -p $(TEST_ADDON_DIR)/android
+	@mkdir -p $(TEST_ADDON_DIR)/bin/ios
+	@echo "$(GREEN)Copying Android build template...$(NC)"
+	@mkdir -p $(TEST_PROJECT_DIR)/android
+	@if [ -d "$(EXAMPLE_DIR)/android/build" ]; then \
+		cp -R $(EXAMPLE_DIR)/android/build $(TEST_PROJECT_DIR)/android/; \
+		cp $(EXAMPLE_DIR)/android/.build_version $(TEST_PROJECT_DIR)/android/ 2>/dev/null || true; \
+	fi
+	@echo "$(GREEN)Copying GDScript files...$(NC)"
+	@cp $(ADDON_DIR)/*.gd $(TEST_ADDON_DIR)/
+	@cp $(ADDON_DIR)/plugin.cfg $(TEST_ADDON_DIR)/
+	@echo "$(GREEN)Copying Android AARs...$(NC)"
+	@cp $(ANDROID_DIR)/build/outputs/aar/godot-iap-release.aar $(TEST_ADDON_DIR)/android/GodotIap.release.aar
+	@cp $(ANDROID_DIR)/build/outputs/aar/godot-iap-debug.aar $(TEST_ADDON_DIR)/android/GodotIap.debug.aar 2>/dev/null || \
+		(cd $(ANDROID_DIR) && ./gradlew assembleDebug && cp build/outputs/aar/godot-iap-debug.aar $(TEST_ADDON_DIR)/android/GodotIap.debug.aar)
+	@echo "$(GREEN)Creating GDAP file...$(NC)"
+	@OPENIAP_VERSION=$$(cat $(PROJECT_ROOT)/openiap-versions.json | grep '"google"' | cut -d'"' -f4); \
+	echo "[config]" > $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
+	echo 'name="GodotIap"' >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
+	echo 'binary_type="local"' >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
+	echo 'binary="GodotIap.release.aar"' >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
+	echo "" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
+	echo "[dependencies]" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
+	echo "local=[]" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap; \
+	echo "remote=[\"com.android.billingclient:billing:7.1.1\", \"io.github.hyochan.openiap:openiap-google:$$OPENIAP_VERSION\"]" >> $(TEST_ADDON_DIR)/android/GodotIap.gdap
+	@echo "$(GREEN)Copying iOS frameworks...$(NC)"
+	@cp -R $(BIN_DIR)/ios/GodotIap.framework $(TEST_ADDON_DIR)/bin/ios/
+	@cp -R $(BIN_DIR)/ios/SwiftGodotRuntime.framework $(TEST_ADDON_DIR)/bin/ios/
+	@echo "$(GREEN)Creating GDExtension config...$(NC)"
+	@echo '[configuration]' > $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo 'entry_symbol = "godot_iap_entry_point"' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo 'compatibility_minimum = "4.3"' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo 'supported_platforms = ["ios"]' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo '' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo '[libraries]' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo 'ios.arm64 = "GodotIap.framework/GodotIap"' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo '# Dummy entries for editor (prevents load errors on non-iOS)' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo 'macos = ""' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo 'windows = ""' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo 'linux = ""' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo '' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo '[dependencies]' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo 'ios.arm64 = {"SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}' >> $(TEST_ADDON_DIR)/bin/ios/godot_iap.gdextension
+	@echo "$(GREEN)✓ TestProject ready$(NC)"
+
+# Export TestProject Android APK
+export-test-android: test-setup
+	@echo "$(GREEN)Exporting TestProject Android APK...$(NC)"
+	@mkdir -p $(TEST_PROJECT_DIR)/android
+	@cd $(TEST_PROJECT_DIR) && $(GODOT) --headless --export-debug "Android" android/Martie.apk
+	@echo "$(GREEN)✓ APK exported to $(TEST_PROJECT_DIR)/android/Martie.apk$(NC)"
+
+# Test Android - Build, copy to TestProject, export and run
+test-android: export-test-android
+	@echo "$(GREEN)Installing APK on device...$(NC)"
+	@~/Library/Android/sdk/platform-tools/adb install -r $(TEST_PROJECT_DIR)/android/Martie.apk
+	@echo "$(GREEN)✓ APK installed$(NC)"
+	@echo "$(GREEN)Launching app...$(NC)"
+	@~/Library/Android/sdk/platform-tools/adb shell monkey -p dev.hyo.martie -c android.intent.category.LAUNCHER 1
+	@echo "$(GREEN)✓ App launched$(NC)"
+
+# Export TestProject iOS Xcode project
+export-test-ios: test-setup
+	@echo "$(GREEN)Exporting TestProject iOS Xcode project...$(NC)"
+	@mkdir -p $(TEST_IOS_EXPORT_DIR)
+	@cd $(TEST_PROJECT_DIR) && $(GODOT) --headless --export-debug "iOS" ios/Martie.xcodeproj
+	@echo "$(GREEN)Fixing iOS frameworks...$(NC)"
+	@cp $(TEST_ADDON_DIR)/bin/ios/GodotIap.framework/Info.plist $(TEST_IOS_EXPORT_DIR)/Martie/addons/godot-iap/bin/ios/GodotIap.framework/ 2>/dev/null || true
+	@cp $(TEST_ADDON_DIR)/bin/ios/SwiftGodotRuntime.framework/Info.plist $(TEST_IOS_EXPORT_DIR)/Martie/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/ 2>/dev/null || true
+	@IOS_EXPORT_DIR=$(TEST_IOS_EXPORT_DIR) $(PROJECT_ROOT)/scripts/fix_ios_embed.sh
+	@echo "$(GREEN)✓ iOS project exported to $(TEST_IOS_EXPORT_DIR)$(NC)"
+
+# Test iOS - Build, copy to TestProject, export and open in Xcode
+test-ios: export-test-ios
+	@echo "$(GREEN)Opening Xcode...$(NC)"
+	@open $(TEST_IOS_EXPORT_DIR)/Martie.xcodeproj
 	@echo ""
 	@echo "$(YELLOW)In Xcode:$(NC)"
 	@echo "  1. Select your connected iOS device"

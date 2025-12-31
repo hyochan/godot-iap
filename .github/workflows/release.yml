@@ -178,6 +178,10 @@ jobs:
 
           [libraries]
           ios.arm64 = "GodotIap.framework/GodotIap"
+          # Dummy entries for editor (prevents load errors on non-iOS)
+          macos = ""
+          windows = ""
+          linux = ""
 
           [dependencies]
           ios.arm64 = {"SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}

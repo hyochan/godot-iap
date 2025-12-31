@@ -20,6 +20,24 @@
       "console": "integratedTerminal"
     },
     {
+      "name": "🧪 Test iOS: Release Build",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["test-ios"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "🧪 Test Android: Release Build",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["test-android"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
       "name": "🎮 Godot: Run Example",
       "type": "godot",
       "request": "launch",

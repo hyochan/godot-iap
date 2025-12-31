@@ -183,10 +183,26 @@ TEST_IOS_EXPORT_DIR := $(TEST_PROJECT_DIR)/ios
 
 # Prepare TestProject addon directory with built binaries (mimics release zip structure)
 # Uses existing iOS frameworks from Example (skip slow iOS build)
+# Always resets TestProject from Example to ensure clean state
 test-setup: android
 	@echo "$(GREEN)Setting up TestProject with built binaries...$(NC)"
+	@echo "$(YELLOW)Resetting TestProject from Example...$(NC)"
+	@rm -rf $(TEST_PROJECT_DIR)
+	@mkdir -p $(TEST_PROJECT_DIR)
 	@mkdir -p $(TEST_ADDON_DIR)/android
 	@mkdir -p $(TEST_ADDON_DIR)/bin/ios
+	@echo "$(GREEN)Copying project files from Example...$(NC)"
+	@cp $(EXAMPLE_DIR)/project.godot $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/main.gd $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/main.tscn $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/iap_manager.gd $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/martie.svg $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/export_presets.cfg $(TEST_PROJECT_DIR)/
+	@cp -R $(EXAMPLE_DIR)/player.tscn $(TEST_PROJECT_DIR)/ 2>/dev/null || true
+	@cp -R $(EXAMPLE_DIR)/obstacle.tscn $(TEST_PROJECT_DIR)/ 2>/dev/null || true
+	@cp -R $(EXAMPLE_DIR)/player.gd $(TEST_PROJECT_DIR)/ 2>/dev/null || true
+	@cp -R $(EXAMPLE_DIR)/obstacle.gd $(TEST_PROJECT_DIR)/ 2>/dev/null || true
+	@sed -i '' 's/config\/name=.*/config\/name="GodotIap TestProject"/' $(TEST_PROJECT_DIR)/project.godot
 	@echo "$(GREEN)Copying Android build template...$(NC)"
 	@mkdir -p $(TEST_PROJECT_DIR)/android
 	@if [ -d "$(EXAMPLE_DIR)/android/build" ]; then \

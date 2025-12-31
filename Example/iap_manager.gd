@@ -34,6 +34,7 @@ func _init_godotiap() -> void:
 	# Connect to GodotIap signals
 	GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
 	GodotIapPlugin.purchase_error.connect(_on_purchase_error)
+	GodotIapPlugin.products_fetched.connect(_on_products_fetched)
 
 	# Initialize connection
 	_set_loading(true)
@@ -66,14 +67,35 @@ func _fetch_products() -> void:
 		"type": "all"
 	})
 
+	# Handle synchronous response (Android) or check for pending (iOS async)
+	if result.get("status") == "pending":
+		# iOS: products will arrive via products_fetched signal
+		print("[IAPManager] Waiting for products (async)...")
+		return
+
 	_set_loading(false)
 
 	if result.has("products"):
-		for product in result["products"]:
-			var id = product.get("id", "")
-			products[id] = product
-			print("[IAPManager] Product loaded: %s - %s" % [id, product.get("displayPrice", "")])
-		products_loaded.emit()
+		_process_products(result["products"])
+
+
+func _on_products_fetched(result: Dictionary) -> void:
+	# Called asynchronously on iOS when products are fetched
+	print("[IAPManager] Products fetched (async): ", result)
+	_set_loading(false)
+
+	if result.has("products"):
+		_process_products(result["products"])
+	elif result.has("error"):
+		push_error("[IAPManager] Failed to fetch products: %s" % result.get("error", "Unknown"))
+
+
+func _process_products(products_array: Array) -> void:
+	for product in products_array:
+		var id = product.get("id", product.get("productId", ""))
+		products[id] = product
+		print("[IAPManager] Product loaded: %s - %s" % [id, product.get("displayPrice", product.get("localizedPrice", ""))])
+	products_loaded.emit()
 
 
 func _on_purchase_updated(purchase: Dictionary) -> void:

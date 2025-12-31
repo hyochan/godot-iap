@@ -66,3 +66,6 @@ docs/node_modules/
 # Example - Built binaries (distributed via releases)
 Example/addons/godot-iap/bin/
 Example/addons/godot-iap/android/*.aar
+
+# TestProject - for testing release builds locally (not tracked in git)
+TestProject/

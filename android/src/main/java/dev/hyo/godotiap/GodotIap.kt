@@ -873,30 +873,46 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             try {
                 val json = JSONObject(propsJson)
 
-                val providerProps = VerifyPurchaseWithProviderProps(
-                    apiKey = json.getString("apiKey"),
+                // Build IAPKit props
+                val iapkitProps = RequestVerifyPurchaseWithIapkitProps(
+                    apiKey = json.optString("apiKey", null),
                     apple = json.optJSONObject("apple")?.let { appleJson ->
-                        VerifyPurchaseWithProviderApple(
+                        RequestVerifyPurchaseWithIapkitAppleProps(
                             jws = appleJson.getString("jws")
                         )
                     },
                     google = json.optJSONObject("google")?.let { googleJson ->
-                        VerifyPurchaseWithProviderGoogle(
+                        RequestVerifyPurchaseWithIapkitGoogleProps(
                             purchaseToken = googleJson.getString("purchaseToken")
                         )
                     }
+                )
+
+                val providerProps = VerifyPurchaseWithProviderProps(
+                    iapkit = iapkitProps,
+                    provider = PurchaseVerificationProvider.Iapkit
                 )
 
                 val result = openIap.verifyPurchaseWithProvider(providerProps)
 
                 JSONObject().apply {
                     put("success", true)
-                    put("isValid", result.isValid)
-                    put("productId", result.productId ?: "")
-                    put("state", result.state ?: "")
-                    result.expirationDate?.let { put("expirationDate", it) }
-                    result.autoRenewing?.let { put("autoRenewing", it) }
-                    result.gracePeriodExpirationDate?.let { put("gracePeriodExpirationDate", it) }
+                    put("provider", result.provider.toJson())
+                    result.iapkit?.let { iapkit ->
+                        put("isValid", iapkit.isValid)
+                        put("state", iapkit.state.toJson())
+                        put("store", iapkit.store.toJson())
+                    }
+                    result.errors?.let { errors ->
+                        val errorsArray = JSONArray()
+                        errors.forEach { error ->
+                            errorsArray.put(JSONObject().apply {
+                                put("code", error.code)
+                                put("message", error.message)
+                            })
+                        }
+                        put("errors", errorsArray)
+                    }
                 }.toString()
             } catch (e: Exception) {
                 Log.e(TAG, "verifyPurchaseWithProvider error: ${e.message}")

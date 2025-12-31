@@ -48,7 +48,7 @@ jobs:
   # iOS Build Check
   ios-build:
     name: iOS Build
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: Checkout
@@ -60,11 +60,6 @@ jobs:
           repository: migueldeicaza/SwiftGodot
           path: SwiftGodot
           ref: main
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '15.4'
 
       - name: Build iOS Framework
         run: |

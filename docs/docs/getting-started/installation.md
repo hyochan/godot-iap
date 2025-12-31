@@ -13,7 +13,7 @@ This guide walks you through installing Godot IAP in your Godot 4.x project.
 ## Prerequisites
 
 - Godot 4.3 or higher
-- For iOS: Xcode 15+ and iOS 15+ target
+- For iOS: Xcode 16+ (Swift 6.0+) and iOS 15+ target
 - For Android: Android SDK with API level 24+
 
 ## Installation

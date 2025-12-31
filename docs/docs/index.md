@@ -61,7 +61,7 @@ We will keep working on it as time goes by just like we did in **expo-iap**, **f
 
 - **Current Version**: 1.0-beta
 - **Godot Compatibility**: Godot 4.3+
-- **iOS Requirements**: iOS 15.0+ (via [openiap](https://openiap.dev))
+- **iOS Requirements**: iOS 15.0+, Xcode 16+ (Swift 6.0+) (via [openiap](https://openiap.dev))
 - **Android Requirements**: API level 24+ (via [openiap](https://openiap.dev))
 
 ## Quick Start

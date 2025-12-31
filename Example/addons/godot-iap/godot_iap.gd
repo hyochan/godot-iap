@@ -451,23 +451,6 @@ func verify_purchase_with_provider(props: Dictionary) -> Dictionary:
 	# Mock mode
 	return { "success": false, "isValid": false, "error": "Not available in mock mode" }
 
-## Get the current storefront/country code
-## Returns the storefront identifier (e.g., "US", "JP", "KR")
-func get_storefront() -> String:
-	print("[GodotIap] get_storefront called")
-	if _native_plugin:
-		if _native_plugin.has_method("getStorefront"):
-			var result_json = _native_plugin.getStorefront()
-			var result = JSON.parse_string(result_json)
-			if result is Dictionary and result.get("success", false):
-				return result.get("storefront", "")
-	# Fallback to platform-specific methods
-	if OS.get_name() == "iOS":
-		return get_storefront_ios()
-	elif OS.get_name() == "Android":
-		return get_storefront_android()
-	# Mock mode
-	return "US"
 
 # ==========================================
 # iOS-Specific (OpenIAP)

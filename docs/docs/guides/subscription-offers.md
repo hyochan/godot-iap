@@ -314,12 +314,20 @@ func request_signature_from_server(product_id: String, offer_id: String, nonce: 
     return response
 
 func generate_uuid() -> String:
-    # Generate a UUID v4
+    # Generate a UUID v4 compliant string
+    # Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    # where x is any hex digit and y is one of 8, 9, A, or B
+    var hex = "0123456789abcdef"
     var uuid = ""
-    for i in range(32):
-        if i in [8, 12, 16, 20]:
+    for i in range(36):
+        if i in [8, 13, 18, 23]:
             uuid += "-"
-        uuid += "%x" % [randi() % 16]
+        elif i == 14:
+            uuid += "4"  # Version 4
+        elif i == 19:
+            uuid += hex[8 + (randi() % 4)]  # Variant: 8, 9, a, or b
+        else:
+            uuid += hex[randi() % 16]
     return uuid
 ```
 

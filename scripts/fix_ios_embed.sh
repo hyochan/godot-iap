@@ -18,9 +18,6 @@ echo "Fixing iOS project to embed frameworks..."
 # Backup original
 cp "$PBXPROJ" "$PBXPROJ.backup"
 
-# Create a temporary file for modifications
-TEMP_FILE=$(mktemp)
-
 # Read the file and make modifications
 python3 << EOF
 import re
@@ -97,15 +94,23 @@ embed_files = f'''				files = (
 					{embed_swiftgodot_id} /* SwiftGodotRuntime.framework in Embed Frameworks */,
 				);'''
 
-# Replace empty Embed Frameworks files
-content = re.sub(
-    r'(90A13CD024AA68E500E8464F\s*/\*\s*Embed Frameworks\s*\*/\s*=\s*\{[^}]*files\s*=\s*\([^)]*\);)',
-    lambda m: re.sub(r'files\s*=\s*\([^)]*\);', f'''files = (
-					{embed_godotiap_id} /* GodotIap.framework in Embed Frameworks */,
-					{embed_swiftgodot_id} /* SwiftGodotRuntime.framework in Embed Frameworks */,
-				);''', m.group(0)),
+# Find Embed Frameworks section dynamically
+embed_phase_match = re.search(
+    r'(\w+)\s*/\*\s*Embed Frameworks\s*\*/\s*=\s*\{[^}]*isa\s*=\s*PBXCopyFilesBuildPhase',
     content
 )
+
+if embed_phase_match:
+    embed_phase_id = embed_phase_match.group(1)
+    print(f"Found Embed Frameworks phase: {embed_phase_id}")
+    # Replace empty Embed Frameworks files using dynamic UUID
+    content = re.sub(
+        rf'({embed_phase_id}\s*/\*\s*Embed Frameworks\s*\*/\s*=\s*\{{[^}}]*files\s*=\s*\()[^)]*(\);)',
+        rf'\g<1>\n\t\t\t\t\t{embed_godotiap_id} /* GodotIap.framework in Embed Frameworks */,\n\t\t\t\t\t{embed_swiftgodot_id} /* SwiftGodotRuntime.framework in Embed Frameworks */,\n\t\t\t\t\2',
+        content
+    )
+else:
+    print("Warning: Could not find Embed Frameworks build phase")
 
 # Fix framework references to point to .framework folder, not binary inside
 content = re.sub(

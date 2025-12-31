@@ -9,9 +9,14 @@ interface IapKitLinkProps {
 
 export default function IapKitLink({children, path = ''}: IapKitLinkProps) {
   const handleClick = () => {
-    fetch(TRACKING_URL, {method: 'POST'}).catch(() => {
-      // Silently ignore tracking errors
-    });
+    // Use sendBeacon for reliable tracking that survives page navigation
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(TRACKING_URL);
+    } else {
+      fetch(TRACKING_URL, {method: 'POST', keepalive: true}).catch(() => {
+        // Silently ignore tracking errors
+      });
+    }
   };
 
   return (

@@ -1028,27 +1028,6 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         return "{\"status\": \"pending\"}"
     }
 
-    @Callable
-    public func getStorefront() -> String {
-        GD.print("[GodotIap] Getting storefront...")
-
-        Task { [weak self] in
-            do {
-                let storefront = try await self?.openIap.getStorefrontIOS() ?? ""
-                await MainActor.run {
-                    let dict = VariantDictionary()
-                    dict["success"] = Variant(true)
-                    dict["storefront"] = Variant(storefront)
-                    self?.productsFetched.emit(dict)
-                }
-            } catch {
-                GD.print("[GodotIap] getStorefront error: \(error.localizedDescription)")
-            }
-        }
-
-        return "{\"status\": \"pending\"}"
-    }
-
     // MARK: - Private Helpers
 
     private func setupListeners() {

@@ -8,14 +8,14 @@ godot-iap is a Godot 4.x plugin for in-app purchases following the [OpenIAP](htt
 
 ### Architecture
 
-```
+```text
 godot-iap/
 ├── android/           # Android plugin (Kotlin)
 │   ├── src/main/
 │   │   ├── java/      # Kotlin sources
 │   │   └── AndroidManifest.xml
 │   └── build.gradle.kts
-├── ios/               # iOS plugin (Swift)
+├── ios-gdextension/   # iOS plugin (Swift GDExtension)
 │   ├── Sources/
 │   └── Package.swift
 ├── Example/           # Godot example project
@@ -85,10 +85,10 @@ dependencies: [
 
 All implementations must follow OpenIAP standards:
 
-- **APIs**: https://openiap.dev/docs/apis
-- **Types**: https://openiap.dev/docs/types
-- **Events**: https://openiap.dev/docs/events
-- **Errors**: https://openiap.dev/docs/errors
+- **APIs**: <https://openiap.dev/docs/apis>
+- **Types**: <https://openiap.dev/docs/types>
+- **Events**: <https://openiap.dev/docs/events>
+- **Errors**: <https://openiap.dev/docs/errors>
 
 ### Core Methods
 
@@ -122,7 +122,7 @@ cd android
 ### iOS
 
 ```bash
-cd ios
+cd ios-gdextension
 swift build -c release
 
 # For device:

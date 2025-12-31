@@ -39,12 +39,11 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 		return false
 
 	func _get_android_libraries(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
-		# Use release AAR for both debug and release builds
-		# Path is relative to the plugin directory
+		# Path is relative to the project root (res://)
 		if debug:
-			return PackedStringArray(["godot-iap/bin/android/GodotIap.debug.aar"])
+			return PackedStringArray(["res://addons/godot-iap/android/GodotIap.debug.aar"])
 		else:
-			return PackedStringArray(["godot-iap/bin/android/GodotIap.release.aar"])
+			return PackedStringArray(["res://addons/godot-iap/android/GodotIap.release.aar"])
 
 	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
 		return PackedStringArray([

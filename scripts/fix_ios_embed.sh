@@ -69,14 +69,29 @@ if not godotiap_ref or not swiftgodot_ref:
         print(f"Found ref: {r[:200]}...")
     exit(1)
 
-# Generate new IDs for embed build files
-embed_godotiap_id = godotiap_ref[:-1] + "E1"
-embed_swiftgodot_id = swiftgodot_ref[:-1] + "E2"
+# Generate new IDs for embed build files using hash to avoid collisions
+import hashlib
+embed_godotiap_id = hashlib.md5(f"{godotiap_ref}_embed".encode()).hexdigest().upper()[:24]
+embed_swiftgodot_id = hashlib.md5(f"{swiftgodot_ref}_embed".encode()).hexdigest().upper()[:24]
 
 # Add embed build file entries after PBXBuildFile section start
 embed_entries = f'''		{embed_godotiap_id} /* GodotIap.framework in Embed Frameworks */ = {{isa = PBXBuildFile; fileRef = {godotiap_ref}; settings = {{ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }}; }};
 		{embed_swiftgodot_id} /* SwiftGodotRuntime.framework in Embed Frameworks */ = {{isa = PBXBuildFile; fileRef = {swiftgodot_ref}; settings = {{ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }}; }};
 '''
+
+# Find Embed Frameworks section dynamically first to validate
+embed_phase_match = re.search(
+    r'(\w+)\s*/\*\s*Embed Frameworks\s*\*/\s*=\s*\{[^}]*isa\s*=\s*PBXCopyFilesBuildPhase',
+    content
+)
+
+if not embed_phase_match:
+    print("Error: Could not find Embed Frameworks build phase")
+    print("The project may not be properly configured for framework embedding")
+    exit(1)
+
+embed_phase_id = embed_phase_match.group(1)
+print(f"Found Embed Frameworks phase: {embed_phase_id}")
 
 # Check if embed entries already exist
 if embed_godotiap_id in content:
@@ -88,29 +103,12 @@ else:
         "/* Begin PBXBuildFile section */\n" + embed_entries
     )
 
-# Update Embed Frameworks files list
-embed_files = f'''				files = (
-					{embed_godotiap_id} /* GodotIap.framework in Embed Frameworks */,
-					{embed_swiftgodot_id} /* SwiftGodotRuntime.framework in Embed Frameworks */,
-				);'''
-
-# Find Embed Frameworks section dynamically
-embed_phase_match = re.search(
-    r'(\w+)\s*/\*\s*Embed Frameworks\s*\*/\s*=\s*\{[^}]*isa\s*=\s*PBXCopyFilesBuildPhase',
+# Replace empty Embed Frameworks files using dynamic UUID
+content = re.sub(
+    rf'({embed_phase_id}\s*/\*\s*Embed Frameworks\s*\*/\s*=\s*\{{[^}}]*files\s*=\s*\()[^)]*(\);)',
+    rf'\g<1>\n\t\t\t\t\t{embed_godotiap_id} /* GodotIap.framework in Embed Frameworks */,\n\t\t\t\t\t{embed_swiftgodot_id} /* SwiftGodotRuntime.framework in Embed Frameworks */,\n\t\t\t\t\2',
     content
 )
-
-if embed_phase_match:
-    embed_phase_id = embed_phase_match.group(1)
-    print(f"Found Embed Frameworks phase: {embed_phase_id}")
-    # Replace empty Embed Frameworks files using dynamic UUID
-    content = re.sub(
-        rf'({embed_phase_id}\s*/\*\s*Embed Frameworks\s*\*/\s*=\s*\{{[^}}]*files\s*=\s*\()[^)]*(\);)',
-        rf'\g<1>\n\t\t\t\t\t{embed_godotiap_id} /* GodotIap.framework in Embed Frameworks */,\n\t\t\t\t\t{embed_swiftgodot_id} /* SwiftGodotRuntime.framework in Embed Frameworks */,\n\t\t\t\t\2',
-        content
-    )
-else:
-    print("Warning: Could not find Embed Frameworks build phase")
 
 # Fix framework references to point to .framework folder, not binary inside
 content = re.sub(

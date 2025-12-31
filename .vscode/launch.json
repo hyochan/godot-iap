@@ -25,7 +25,7 @@
       "request": "launch",
       "project": "${workspaceFolder}/Example",
       "scene": "res://main.tscn",
-      "editor_path": "/Applications/Godot.app/Contents/MacOS/Godot",
+      "editor_path": "${config:godot_tools.editor_path}",
       "debug": true
     },
     {

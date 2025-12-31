@@ -129,8 +129,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     // ==========================================
 
     @UsedByGodot
-    fun fetchProducts(skusJson: String): String {
-        Log.d(TAG, "fetchProducts called with: $skusJson")
+    fun fetchProducts(requestJson: String): String {
+        Log.d(TAG, "fetchProducts called with: $requestJson")
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -141,13 +141,23 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return runBlocking {
             try {
-                val skusArray = JSONArray(skusJson)
+                // Parse request JSON: { "skus": [...], "type": "all" | "inapp" | "subs" }
+                val request = JSONObject(requestJson)
+                val skusArray = request.optJSONArray("skus") ?: JSONArray()
                 val skus = mutableListOf<String>()
                 for (i in 0 until skusArray.length()) {
                     skus.add(skusArray.getString(i))
                 }
 
-                val result = store.fetchProducts(ProductRequest(skus = skus, type = ProductQueryType.All))
+                // Parse type from request (default to "all")
+                val typeStr = request.optString("type", "all")
+                val queryType = when (typeStr) {
+                    "inapp" -> ProductQueryType.InApp
+                    "subs" -> ProductQueryType.Subs
+                    else -> ProductQueryType.All
+                }
+
+                val result = store.fetchProducts(ProductRequest(skus = skus, type = queryType))
                 val productsArray = JSONArray()
 
                 when (result) {
@@ -836,11 +846,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     val resultMap = result.toJson()
 
                     JSONObject().apply {
-                        put("success", true)
-                        put("isValid", resultMap["isValid"] ?: false)
                         for ((key, value) in resultMap) {
                             put(key, value)
                         }
+                        // Set success after loop to avoid being overwritten by resultMap
+                        put("success", true)
                     }.toString()
                 } else {
                     JSONObject().apply {
@@ -916,34 +926,6 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 Log.e(TAG, "verifyPurchaseWithProvider error: ${e.message}")
-                JSONObject().apply {
-                    put("success", false)
-                    put("error", e.message)
-                }.toString()
-            }
-        }
-    }
-
-    @UsedByGodot
-    fun getStorefront(): String {
-        Log.d(TAG, "getStorefront called")
-
-        if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
-        }
-
-        return runBlocking {
-            try {
-                val countryCode = openIap.getStorefront()
-                JSONObject().apply {
-                    put("success", true)
-                    put("storefront", countryCode ?: "")
-                }.toString()
-            } catch (e: Exception) {
-                Log.e(TAG, "getStorefront error: ${e.message}")
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)

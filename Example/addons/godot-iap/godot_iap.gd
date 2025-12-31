@@ -51,7 +51,6 @@ func _init_native_plugin() -> void:
 	# Android: Try GodotIap singleton
 	if _platform == "Android":
 		print("[GodotIap] Checking for Android singleton...")
-		print("[GodotIap] Available singletons: ", Engine.get_singleton_list())
 		if Engine.has_singleton("GodotIap"):
 			_native_plugin = Engine.get_singleton("GodotIap")
 			print("[GodotIap] Native plugin loaded via Engine singleton (Android)")
@@ -175,9 +174,8 @@ func _on_android_developer_provided_billing(details_json: String) -> void:
 # ==========================================
 
 ## Initialize the IAP connection
-## @param config: Optional InitConnectionConfig dictionary
 ## Returns true if connection was successful
-func init_connection(config: Dictionary = {}) -> bool:
+func init_connection() -> bool:
 	print("[GodotIap] init_connection called")
 	if _native_plugin:
 		if _platform == "Android":
@@ -220,24 +218,14 @@ func is_store_connected() -> bool:
 # ==========================================
 
 ## Fetch products from the store
-## @param request: ProductRequest dictionary { skus: Array, type: ProductQueryType }
+## @param request: ProductRequest dictionary { skus: Array, type: "all" | "inapp" | "subs" }
 ## Returns Dictionary with products array
 func fetch_products(request: Dictionary) -> Dictionary:
 	print("[GodotIap] fetch_products called with: ", request)
 	if _native_plugin:
-		var skus = request.get("skus", [])
 		var request_json = JSON.stringify(request)
-		if _platform == "Android":
-			var skus_json = JSON.stringify(skus)
-			print("[GodotIap] Calling fetchProducts with: ", skus_json)
-			var result_json = _native_plugin.fetchProducts(skus_json)
-			print("[GodotIap] fetchProducts result: ", result_json)
-			var result = JSON.parse_string(result_json)
-			if result is Dictionary:
-				return result
-			return { "products": [], "error": "Parse error" }
-		elif _platform == "iOS":
-			print("[GodotIap] Calling iOS fetchProducts with: ", request_json)
+		if _platform == "Android" or _platform == "iOS":
+			print("[GodotIap] Calling fetchProducts with: ", request_json)
 			var result_json = _native_plugin.fetchProducts(request_json)
 			print("[GodotIap] fetchProducts result: ", result_json)
 			var result = JSON.parse_string(result_json)
@@ -789,7 +777,9 @@ func deep_link_to_subscriptions(options: Dictionary = {}) -> void:
 		var sku = options.get("skuAndroid", "")
 		var package_name = options.get("packageNameAndroid", get_package_name_android())
 		if not sku.is_empty() and not package_name.is_empty():
-			OS.shell_open("https://play.google.com/store/account/subscriptions?sku=%s&package=%s" % [sku, package_name])
+			var encoded_sku = sku.uri_encode()
+			var encoded_package = package_name.uri_encode()
+			OS.shell_open("https://play.google.com/store/account/subscriptions?sku=%s&package=%s" % [encoded_sku, encoded_package])
 		else:
 			OS.shell_open("https://play.google.com/store/account/subscriptions")
 

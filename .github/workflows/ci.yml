@@ -26,6 +26,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Sync OpenIAP versions
+        run: |
+          chmod +x scripts/sync-versions.sh
+          ./scripts/sync-versions.sh
+
       - name: Download godot-lib.aar
         run: |
           mkdir -p android/libs
@@ -59,17 +64,34 @@ jobs:
         with:
           repository: migueldeicaza/SwiftGodot
           path: SwiftGodot
-          ref: main
+          ref: v0.74.0
+
+      - name: Select Xcode 26 for Swift 6
+        run: |
+          # Use Xcode 26 which includes Swift 6
+          sudo xcode-select -s /Applications/Xcode_26.0.1.app/Contents/Developer
+          echo "Xcode version:"
+          xcodebuild -version
+          echo "Swift version:"
+          swift --version
+
+      - name: Sync OpenIAP versions
+        run: |
+          chmod +x scripts/sync-versions.sh
+          ./scripts/sync-versions.sh
 
       - name: Build iOS Framework
         run: |
           cd ios-gdextension
+          # Limit parallelism to avoid memory issues with SwiftGodot compilation
           xcodebuild -scheme GodotIap \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -configuration Release \
             -derivedDataPath .build-xcode \
+            -jobs 2 \
             build
+        timeout-minutes: 30
 
       - name: Upload iOS Framework
         uses: actions/upload-artifact@v4
@@ -91,22 +113,28 @@ jobs:
         run: |
           # Basic syntax check - ensure all .gd files are valid
           echo "Checking GDScript files..."
+          HAS_ISSUES=0
 
           # Check for common issues
-          find . -name "*.gd" -type f | while read file; do
+          while IFS= read -r -d '' file; do
             echo "Checking: $file"
 
             # Check for tabs vs spaces consistency
             if grep -P '^\t' "$file" > /dev/null && grep -P '^  ' "$file" > /dev/null; then
               echo "Warning: Mixed tabs and spaces in $file"
+              HAS_ISSUES=1
             fi
 
             # Check for trailing whitespace
             if grep -E '\s+$' "$file" > /dev/null; then
               echo "Warning: Trailing whitespace in $file"
+              HAS_ISSUES=1
             fi
-          done
+          done < <(find . -name "*.gd" -type f -print0)
 
+          if [ "$HAS_ISSUES" -eq 1 ]; then
+            echo "GDScript check found issues (warnings only)"
+          fi
           echo "GDScript check completed"
 
   # Documentation Build Check

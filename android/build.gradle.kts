@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurper
+
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
@@ -5,6 +7,10 @@ plugins {
 
 val pluginName = "GodotIap"
 val pluginPackageName = "dev.hyo.godotiap"
+
+// Read OpenIAP version from shared config
+val openiapVersions = JsonSlurper().parse(file("../openiap-versions.json")) as Map<*, *>
+val openiapGoogleVersion = openiapVersions["google"] as String
 
 android {
     namespace = pluginPackageName
@@ -38,8 +44,8 @@ android {
 }
 
 dependencies {
-    // OpenIAP Google package from Maven Central
-    implementation("io.github.hyochan.openiap:openiap-google:1.3.+")
+    // OpenIAP Google package from Maven Central (version from openiap-versions.json)
+    implementation("io.github.hyochan.openiap:openiap-google:$openiapGoogleVersion")
 
     // Godot Android library
     // For local development: Place godot-lib.aar in libs/ folder

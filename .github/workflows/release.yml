@@ -41,7 +41,16 @@ jobs:
         with:
           repository: migueldeicaza/SwiftGodot
           path: SwiftGodot
-          ref: main
+          ref: v0.74.0
+
+      - name: Select Xcode 26 for Swift 6
+        run: |
+          # Use Xcode 26 which includes Swift 6
+          sudo xcode-select -s /Applications/Xcode_26.0.1.app/Contents/Developer
+          echo "Xcode version:"
+          xcodebuild -version
+          echo "Swift version:"
+          swift --version
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -62,10 +71,16 @@ jobs:
           echo "Current version: $CURRENT_VERSION"
 
           if [ "${{ inputs.version }}" = "custom" ]; then
-            NEW_VERSION="${{ inputs.custom_version }}"
+            # Validate custom version format (semver with optional prerelease)
+            CUSTOM_VERSION="${{ inputs.custom_version }}"
+            if ! echo "$CUSTOM_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+              echo "Error: Invalid version format. Must be semver (e.g., 1.0.0 or 1.0.0-beta.1)"
+              exit 1
+            fi
+            NEW_VERSION="$CUSTOM_VERSION"
           else
             # Parse current version (handle both X.Y.Z and X.Y.Z-suffix formats)
-            BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-.*//')
+            BASE_VERSION="${CURRENT_VERSION%%-*}"
             IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 
             case "${{ inputs.version }}" in
@@ -93,6 +108,11 @@ jobs:
           sed -i '' 's/^version=.*/version="${{ steps.version.outputs.VERSION }}"/' Example/addons/godot-iap/plugin.cfg
           cat Example/addons/godot-iap/plugin.cfg
 
+      - name: Sync OpenIAP versions
+        run: |
+          chmod +x scripts/sync-versions.sh
+          ./scripts/sync-versions.sh
+
       - name: Download godot-lib.aar
         run: |
           mkdir -p android/libs
@@ -108,12 +128,15 @@ jobs:
       - name: Build iOS Frameworks
         run: |
           cd ios-gdextension
+          # Limit parallelism to avoid memory issues with SwiftGodot compilation
           xcodebuild -scheme GodotIap \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -configuration Release \
             -derivedDataPath .build-xcode \
+            -jobs 2 \
             build
+        timeout-minutes: 30
 
       - name: Prepare addon directory
         run: |
@@ -127,8 +150,9 @@ jobs:
           # Copy Android AAR
           cp android/build/outputs/aar/android-release.aar dist/addons/godot-iap/android/GodotIap.release.aar
 
-          # Create GDAP file for Android plugin
-          cat > dist/addons/godot-iap/android/GodotIap.gdap << 'EOF'
+          # Create GDAP file for Android plugin with exact version from openiap-versions.json
+          OPENIAP_GOOGLE_VERSION=$(cat openiap-versions.json | grep '"google"' | cut -d'"' -f4)
+          cat > dist/addons/godot-iap/android/GodotIap.gdap << EOF
           [config]
           name="GodotIap"
           binary_type="local"
@@ -136,7 +160,7 @@ jobs:
 
           [dependencies]
           local=[]
-          remote=["com.android.billingclient:billing:7.1.1", "io.github.hyochan.openiap:openiap-google:1.3.+"]
+          remote=["com.android.billingclient:billing:7.1.1", "io.github.hyochan.openiap:openiap-google:${OPENIAP_GOOGLE_VERSION}"]
           EOF
 
           # Copy iOS frameworks

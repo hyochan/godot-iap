@@ -52,8 +52,9 @@ dependencies {
     // For production: This will be provided by Godot's export process
     compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
 
-    // Kotlin coroutines for async operations
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    // Kotlin coroutines for async operations (version from gradle.properties)
+    val kotlinxCoroutinesVersion: String by project
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlinxCoroutinesVersion")
 }
 
 // Copy the built AAR to the addons directory for Godot

@@ -63,19 +63,33 @@ const PRODUCT_PREMIUM := "com.example.premium"
 
 ## Dependencies
 
+### Version Management
+
+Dependency versions are centralized and synced via `scripts/sync-versions.sh`:
+
+| Dependency | Source | Synced To |
+|------------|--------|-----------|
+| openiap-apple | `openiap-versions.json` | `ios-gdextension/Package.swift` |
+| openiap-google | `openiap-versions.json` | `godot_iap_plugin.gd` |
+| kotlinx-coroutines | `android/gradle.properties` | `godot_iap_plugin.gd`, `build.gradle.kts` |
+
+To update versions:
+1. Edit `openiap-versions.json` or `android/gradle.properties`
+2. Run `./scripts/sync-versions.sh`
+
 ### Android (openiap-google)
 
 ```kotlin
-// build.gradle.kts
+// build.gradle.kts - reads from openiap-versions.json
 dependencies {
-    implementation("io.github.hyochan.openiap:openiap-google:1.3.+")
+    implementation("io.github.hyochan.openiap:openiap-google:$openiapGoogleVersion")
 }
 ```
 
 ### iOS (openiap-apple)
 
 ```swift
-// Package.swift
+// Package.swift - generated from template by sync script
 dependencies: [
     .package(url: "https://github.com/hyodotdev/openiap.git", from: "1.3.0")
 ]

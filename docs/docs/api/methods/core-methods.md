@@ -8,7 +8,14 @@ import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 <IapKitBanner />
 
-Core methods available on both iOS and Android platforms.
+Core methods available on both iOS and Android platforms. All methods use typed parameters and return typed objects.
+
+## Setup
+
+```gdscript
+# Load OpenIAP types
+const Types = preload("res://addons/godot-iap/types.gd")
+```
 
 ## Connection Methods
 
@@ -17,22 +24,20 @@ Core methods available on both iOS and Android platforms.
 Initialize the billing connection. Must be called before any other IAP operations.
 
 ```gdscript
-func init_connection() -> String
+func init_connection() -> bool
 ```
 
-**Returns:** JSON string with result
-
-```json
-{
-  "success": true
-}
-```
+**Returns:** `bool` - `true` if connection successful
 
 **Example:**
 ```gdscript
-var result = JSON.parse_string(iap.init_connection())
-if result.get("success", false):
-    print("IAP connection initialized")
+func _ready():
+    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
+    GodotIapPlugin.purchase_error.connect(_on_purchase_error)
+
+    if GodotIapPlugin.init_connection():
+        print("IAP connection initialized")
+        _fetch_products()
 ```
 
 ---
@@ -42,22 +47,17 @@ if result.get("success", false):
 End the billing connection. Call when your app no longer needs IAP functionality.
 
 ```gdscript
-func end_connection() -> String
+func end_connection() -> Types.VoidResult
 ```
 
-**Returns:** JSON string with result
-
-```json
-{
-  "success": true
-}
-```
+**Returns:** `Types.VoidResult` with `success` boolean
 
 **Example:**
 ```gdscript
 func _exit_tree():
-    if iap:
-        iap.end_connection()
+    var result = GodotIapPlugin.end_connection()
+    if result.success:
+        print("Connection ended")
 ```
 
 ---
@@ -66,54 +66,36 @@ func _exit_tree():
 
 ### fetch_products
 
-Fetch product details from the store.
+Fetch product details from the store. Returns an array of typed product objects.
 
 ```gdscript
-func fetch_products(skus_json: String, product_type: String) -> String
+func fetch_products(request: Types.ProductRequest) -> Array
 ```
 
 **Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `skus_json` | `String` | JSON array of product IDs |
-| `product_type` | `String` | "inapp" or "subs" |
+| `request` | `Types.ProductRequest` | Product request with SKUs and type |
 
-**Returns:** JSON string with status (result via `products_fetched` signal)
+**Returns:** `Array` of `Types.ProductAndroid` (Android) or `Types.ProductIOS` (iOS)
 
-**Example:**
-```gdscript
-var product_ids = ["coins_100", "coins_500", "remove_ads"]
-iap.fetch_products(JSON.stringify(product_ids), "inapp")
-
-# Handle result in signal
-func _on_products_fetched(result: Dictionary):
-    if result.get("success", false):
-        var products = JSON.parse_string(result.get("productsJson", "[]"))
-        for product in products:
-            print("Product: ", product.id, " - ", product.displayPrice)
-```
-
----
-
-### fetch_subscriptions
-
-Fetch subscription product details.
-
-```gdscript
-func fetch_subscriptions(skus_json: String) -> String
-```
-
-**Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `skus_json` | `String` | JSON array of subscription IDs |
-
-**Returns:** JSON string with status
+:::info Platform-Specific Types
+GDScript doesn't support Union types. The returned array contains either `ProductAndroid` or `ProductIOS` objects depending on the platform. Both share common properties like `id`, `title`, and `display_price`.
+:::
 
 **Example:**
 ```gdscript
-var sub_ids = ["premium_monthly", "premium_yearly"]
-iap.fetch_subscriptions(JSON.stringify(sub_ids))
+func _fetch_products():
+    var request = Types.ProductRequest.new()
+    request.skus = ["coins_100", "coins_500", "remove_ads"]
+    request.type = Types.ProductQueryType.ALL
+
+    var products = GodotIapPlugin.fetch_products(request)
+    for product in products:
+        # Access typed properties directly
+        print("Product: %s - %s" % [product.id, product.display_price])
+        print("  Title: %s" % product.title)
+        print("  Description: %s" % product.description)
 ```
 
 ---
@@ -125,98 +107,35 @@ iap.fetch_subscriptions(JSON.stringify(sub_ids))
 Request a purchase for a product.
 
 ```gdscript
-func request_purchase(params_json: String) -> String
+func request_purchase(props: Types.RequestPurchaseProps) -> Variant
 ```
 
 **Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `params_json` | `String` | JSON object with purchase parameters |
+| `props` | `Types.RequestPurchaseProps` | Purchase request with platform-specific options |
 
-**Purchase Parameters:**
-```json
-{
-  "sku": "product_id",
-  "ios": {
-    "quantity": 1,
-    "uuid": "optional-uuid",
-    "appAccountToken": "optional-token"
-  },
-  "android": {
-    "skus": ["product_id"],
-    "obfuscatedAccountId": "optional",
-    "obfuscatedProfileId": "optional"
-  }
-}
-```
-
-**Returns:** JSON string with status
+**Returns:** `Variant` - `Types.PurchaseAndroid`, `Types.PurchaseIOS`, or `null`
 
 **Example:**
 ```gdscript
 func purchase_product(product_id: String):
-    var params = {
-        "sku": product_id,
-        "ios": { "quantity": 1 },
-        "android": { "skus": [product_id] }
-    }
-    iap.request_purchase(JSON.stringify(params))
-```
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
 
----
+    # Android configuration
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [product_id]
 
-### request_subscription
+    # iOS configuration
+    props.request.apple = Types.RequestPurchaseIosProps.new()
+    props.request.apple.sku = product_id
 
-Request a subscription purchase.
+    props.type = Types.ProductQueryType.IN_APP
 
-```gdscript
-func request_subscription(params_json: String) -> String
-```
-
-**Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `params_json` | `String` | JSON object with subscription parameters |
-
-**Subscription Parameters:**
-```json
-{
-  "sku": "subscription_id",
-  "ios": {
-    "quantity": 1,
-    "promotionalOffer": {
-      "id": "offer_id",
-      "keyIdentifier": "key_id",
-      "nonce": "nonce",
-      "timestamp": 1234567890,
-      "signature": "signature"
-    }
-  },
-  "android": {
-    "skus": ["subscription_id"],
-    "subscriptionOffers": [{
-      "sku": "subscription_id",
-      "offerToken": "token"
-    }]
-  }
-}
-```
-
-**Example:**
-```gdscript
-func subscribe(subscription_id: String):
-    var params = {
-        "sku": subscription_id,
-        "ios": { "quantity": 1 },
-        "android": {
-            "skus": [subscription_id],
-            "subscriptionOffers": [{
-                "sku": subscription_id,
-                "offerToken": selected_offer_token
-            }]
-        }
-    }
-    iap.request_subscription(JSON.stringify(params))
+    var purchase = GodotIapPlugin.request_purchase(props)
+    if purchase:
+        print("Purchase initiated: ", purchase.product_id)
 ```
 
 ---
@@ -226,29 +145,28 @@ func subscribe(subscription_id: String):
 Finish a transaction after processing. **Must be called for every successful purchase.**
 
 ```gdscript
-func finish_transaction(purchase_json: String, is_consumable: bool) -> String
+func finish_transaction(purchase: Types.PurchaseInput, is_consumable: bool) -> Types.VoidResult
 ```
 
 **Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `purchase_json` | `String` | JSON object of the purchase |
+| `purchase` | `Types.PurchaseInput` | Purchase to finish |
 | `is_consumable` | `bool` | Whether the product is consumable |
 
-**Returns:** JSON string with result
+**Returns:** `Types.VoidResult`
 
 **Example:**
 ```gdscript
 func _on_purchase_updated(purchase: Dictionary):
-    if purchase.get("purchaseState") == "purchased":
-        # Verify on server first
+    if purchase.get("purchaseState") == "Purchased":
+        # Verify on server first (recommended)
         var verified = await verify_on_server(purchase)
         if verified:
-            var is_consumable = is_consumable_product(purchase.productId)
-            var result = JSON.parse_string(
-                iap.finish_transaction(JSON.stringify(purchase), is_consumable)
-            )
-            if result.get("success", false):
+            var purchase_input = Types.PurchaseInput.from_dict(purchase)
+            var is_consumable = _is_consumable_product(purchase.get("productId", ""))
+            var result = GodotIapPlugin.finish_transaction(purchase_input, is_consumable)
+            if result.success:
                 print("Transaction finished")
 ```
 
@@ -259,26 +177,19 @@ func _on_purchase_updated(purchase: Dictionary):
 Get all available (unfinished) purchases.
 
 ```gdscript
-func get_available_purchases() -> String
+func get_available_purchases() -> Array
 ```
 
-**Returns:** JSON string with purchases array
-
-```json
-{
-  "success": true,
-  "purchasesJson": "[{\"productId\":\"coins_100\",\"purchaseState\":\"purchased\",...}]"
-}
-```
+**Returns:** `Array` of `Types.PurchaseAndroid` (Android) or `Types.PurchaseIOS` (iOS)
 
 **Example:**
 ```gdscript
 func restore_purchases():
-    var result = JSON.parse_string(iap.get_available_purchases())
-    if result.get("success", false):
-        var purchases = JSON.parse_string(result.get("purchasesJson", "[]"))
-        for purchase in purchases:
-            await process_purchase(purchase)
+    var purchases = GodotIapPlugin.get_available_purchases()
+    for purchase in purchases:
+        # Access typed properties
+        print("Found purchase: %s" % purchase.product_id)
+        await process_purchase(purchase)
 ```
 
 ---
@@ -288,17 +199,17 @@ func restore_purchases():
 Restore previous purchases. Useful for non-consumable products and subscriptions.
 
 ```gdscript
-func restore_purchases() -> String
+func restore_purchases() -> Types.VoidResult
 ```
 
-**Returns:** JSON string with status
+**Returns:** `Types.VoidResult`
 
 **Example:**
 ```gdscript
 func _on_restore_pressed():
-    iap.restore_purchases()
-
-# Results come through purchase_updated signal
+    var result = GodotIapPlugin.restore_purchases()
+    if result.success:
+        print("Restore initiated - results come through purchase_updated signal")
 ```
 
 ---
@@ -310,25 +221,22 @@ func _on_restore_pressed():
 Get active subscriptions for given IDs.
 
 ```gdscript
-func get_active_subscriptions(subscription_ids_json: String) -> String
+func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array
 ```
 
 **Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `subscription_ids_json` | `String` | JSON array of subscription IDs (or empty for all) |
+| `subscription_ids` | `Array[String]` | Subscription IDs (empty for all) |
 
-**Returns:** JSON string with active subscriptions
+**Returns:** `Array` of `Types.ActiveSubscription`
 
 **Example:**
 ```gdscript
-func check_premium_status():
-    var ids = ["premium_monthly", "premium_yearly"]
-    var result = JSON.parse_string(iap.get_active_subscriptions(JSON.stringify(ids)))
-    if result.get("success", false):
-        var subs = JSON.parse_string(result.get("subscriptionsJson", "[]"))
-        return subs.size() > 0
-    return false
+func check_premium_status() -> bool:
+    var ids: Array[String] = ["premium_monthly", "premium_yearly"]
+    var active_subs = GodotIapPlugin.get_active_subscriptions(ids)
+    return active_subs.size() > 0
 ```
 
 ---
@@ -338,29 +246,21 @@ func check_premium_status():
 Check if user has any active subscriptions.
 
 ```gdscript
-func has_active_subscriptions(subscription_ids_json: String) -> String
+func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool
 ```
 
 **Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `subscription_ids_json` | `String` | JSON array of subscription IDs (or empty for all) |
+| `subscription_ids` | `Array[String]` | Subscription IDs (empty for all) |
 
-**Returns:** JSON string with boolean result
-
-```json
-{
-  "success": true,
-  "hasActive": true
-}
-```
+**Returns:** `bool`
 
 **Example:**
 ```gdscript
-func is_premium():
-    var ids = ["premium_monthly", "premium_yearly"]
-    var result = JSON.parse_string(iap.has_active_subscriptions(JSON.stringify(ids)))
-    return result.get("hasActive", false)
+func is_premium() -> bool:
+    var ids: Array[String] = ["premium_monthly", "premium_yearly"]
+    return GodotIapPlugin.has_active_subscriptions(ids)
 ```
 
 ---
@@ -375,14 +275,13 @@ Emitted when a purchase is updated.
 func _on_purchase_updated(purchase: Dictionary):
     var product_id = purchase.get("productId", "")
     var state = purchase.get("purchaseState", "")
-    var transaction_id = purchase.get("transactionId", "")
 
     match state:
-        "purchased":
+        "Purchased", "purchased":
             await handle_successful_purchase(purchase)
-        "pending":
+        "Pending", "pending":
             show_pending_message(product_id)
-        "failed":
+        _:
             show_error_message()
 ```
 
@@ -392,9 +291,8 @@ func _on_purchase_updated(purchase: Dictionary):
 | `id` | `String` | Unique purchase ID |
 | `productId` | `String` | Product identifier |
 | `transactionId` | `String` | Transaction identifier |
-| `purchaseState` | `String` | "purchased", "pending", "failed" |
+| `purchaseState` | `String` | "Purchased", "Pending", etc. |
 | `transactionDate` | `int` | Purchase timestamp |
-| `quantity` | `int` | Quantity purchased |
 | `platform` | `String` | "ios" or "android" |
 | `purchaseToken` | `String` | (Android) Purchase token |
 | `isAcknowledged` | `bool` | (Android) Whether acknowledged |
@@ -414,7 +312,7 @@ func _on_purchase_error(error: Dictionary):
         "USER_CANCELED":
             print("Purchase canceled by user")
         "ITEM_ALREADY_OWNED":
-            restore_purchases()
+            GodotIapPlugin.restore_purchases()
         _:
             show_error_dialog(message)
 ```
@@ -423,15 +321,13 @@ func _on_purchase_error(error: Dictionary):
 
 ### products_fetched
 
-Emitted when products are fetched.
+Emitted when products are fetched (primarily used for iOS async operations).
 
 ```gdscript
 func _on_products_fetched(result: Dictionary):
-    if result.get("success", false):
-        var json = result.get("productsJson", "[]")
-        var products = JSON.parse_string(json)
-        update_store_ui(products)
-    else:
-        var error = result.get("error", "Unknown error")
-        print("Failed to fetch products: ", error)
+    if result.has("products"):
+        for product_dict in result["products"]:
+            print("Fetched: ", product_dict.get("id", ""))
+    elif result.has("error"):
+        print("Failed: ", result.get("error", ""))
 ```

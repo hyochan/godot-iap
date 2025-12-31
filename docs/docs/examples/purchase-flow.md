@@ -11,13 +11,13 @@ import IapKitLink from '@site/src/uis/IapKitLink';
 
 <IapKitBanner />
 
-This example demonstrates a complete in-app purchase implementation for a Godot game.
+This example demonstrates a complete in-app purchase implementation for a Godot game using the **type-safe API**.
 
 ## Overview
 
 This example shows how to:
 - Initialize the IAP connection
-- Fetch and display products
+- Fetch and display products with typed objects
 - Handle purchases with proper verification
 - Finish transactions correctly
 
@@ -31,13 +31,14 @@ Create this script and add it as an Autoload singleton in Project Settings.
 # iap_manager.gd
 extends Node
 
-# IAP reference
-var iap: GodotIap = null
+# Load OpenIAP types for type-safe API
+const Types = preload("res://addons/godot-iap/types.gd")
+
+# Connection state
 var is_connected: bool = false
 
-# Product data
-var products: Array = []
-var subscriptions: Array = []
+# Product data - stored as typed objects
+var products: Dictionary = {}  # product_id -> Types.ProductAndroid or Types.ProductIOS
 
 # Product IDs
 const PRODUCT_IDS = {
@@ -57,21 +58,13 @@ func _ready():
     _initialize_iap()
 
 func _initialize_iap():
-    if not Engine.has_singleton("GodotIap"):
-        push_warning("GodotIap singleton not available")
-        return
-
-    iap = Engine.get_singleton("GodotIap")
-
     # Connect signals
-    iap.purchase_updated.connect(_on_purchase_updated)
-    iap.purchase_error.connect(_on_purchase_error)
-    iap.products_fetched.connect(_on_products_fetched)
-    iap.subscriptions_fetched.connect(_on_subscriptions_fetched)
+    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
+    GodotIapPlugin.purchase_error.connect(_on_purchase_error)
+    GodotIapPlugin.products_fetched.connect(_on_products_fetched)
 
-    # Initialize connection
-    var result = JSON.parse_string(iap.init_connection())
-    is_connected = result.get("success", false)
+    # Initialize connection - returns bool
+    is_connected = GodotIapPlugin.init_connection()
 
     if is_connected:
         print("IAP connected successfully")
@@ -79,40 +72,43 @@ func _initialize_iap():
         _check_pending_purchases()
         _load_products()
     else:
-        print("IAP connection failed: ", result.get("error", ""))
+        print("IAP connection failed")
         connection_changed.emit(false)
 
 func _check_pending_purchases():
-    var purchases = JSON.parse_string(iap.get_available_purchases())
-
+    # Returns Array of typed purchase objects
+    var purchases = GodotIapPlugin.get_available_purchases()
     for purchase in purchases:
         await _process_purchase(purchase)
 
 func _load_products():
-    # Load in-app products
-    var inapp_ids = [
-        PRODUCT_IDS.coins_100,
-        PRODUCT_IDS.coins_500,
-        PRODUCT_IDS.remove_ads
-    ]
-    iap.fetch_products(JSON.stringify(inapp_ids), "inapp")
+    # Create typed ProductRequest
+    var request = Types.ProductRequest.new()
+    request.skus = PRODUCT_IDS.values()
+    request.type = Types.ProductQueryType.ALL
 
-    # Load subscriptions
-    var sub_ids = [PRODUCT_IDS.premium_monthly]
-    iap.fetch_subscriptions(JSON.stringify(sub_ids))
+    # Returns Array of typed product objects
+    var fetched_products = GodotIapPlugin.fetch_products(request)
+    _process_products(fetched_products)
+
+func _process_products(fetched_products: Array):
+    for product in fetched_products:
+        # Access typed properties directly
+        products[product.id] = product
+        print("Loaded: %s - %s" % [product.id, product.display_price])
+    products_loaded.emit(fetched_products)
 
 # Signal handlers
-func _on_products_fetched(fetched_products: Array):
-    products = fetched_products
-    print("Loaded %d products" % products.size())
-    products_loaded.emit(products)
-
-func _on_subscriptions_fetched(fetched_subs: Array):
-    subscriptions = fetched_subs
-    print("Loaded %d subscriptions" % subscriptions.size())
+func _on_products_fetched(result: Dictionary):
+    # iOS async callback
+    if result.has("products"):
+        for product_dict in result["products"]:
+            var id = product_dict.get("id", "")
+            products[id] = product_dict
+        products_loaded.emit(products.values())
 
 func _on_purchase_updated(purchase: Dictionary):
-    await _process_purchase(purchase)
+    await _process_purchase_dict(purchase)
 
 func _on_purchase_error(error: Dictionary):
     var code = error.get("code", "")
@@ -123,22 +119,22 @@ func _on_purchase_error(error: Dictionary):
         print("Purchase error: ", error.get("message", ""))
         purchase_failed.emit(error)
 
-func _process_purchase(purchase: Dictionary):
-    var state = purchase.get("purchaseState", "")
-    var product_id = purchase.productId
+func _process_purchase(purchase) -> void:
+    # Works with both typed objects and dictionaries
+    var product_id = purchase.product_id if purchase is Object else purchase.get("productId", "")
+    var state = purchase.purchase_state if purchase is Object else purchase.get("purchaseState", "")
 
-    print("Processing purchase: ", product_id, " state: ", state)
+    print("Processing purchase: %s (state: %s)" % [product_id, state])
 
-    if state == "pending":
+    if state == "Pending" or state == "pending":
         print("Purchase pending approval")
         return
 
-    if state != "purchased":
+    if state != "Purchased" and state != "purchased":
         return
 
     # Verify purchase on server (recommended for production)
     var is_valid = await _verify_purchase(purchase)
-
     if not is_valid:
         print("Purchase verification failed")
         return
@@ -146,17 +142,24 @@ func _process_purchase(purchase: Dictionary):
     # Grant the content
     _grant_purchase(product_id)
 
-    # Finish the transaction
+    # Finish the transaction with typed input
     var is_consumable = _is_consumable(product_id)
-    var params = {
-        "purchase": purchase,
-        "isConsumable": is_consumable
-    }
+    var purchase_input: Types.PurchaseInput
+    if purchase is Object:
+        purchase_input = Types.PurchaseInput.new()
+        purchase_input.product_id = purchase.product_id
+        purchase_input.purchase_token = purchase.purchase_token if "purchase_token" in purchase else ""
+        purchase_input.transaction_id = purchase.transaction_id if "transaction_id" in purchase else ""
+    else:
+        purchase_input = Types.PurchaseInput.from_dict(purchase)
 
-    var result = JSON.parse_string(iap.finish_transaction(JSON.stringify(params)))
-    if result.get("success", false):
+    var result = GodotIapPlugin.finish_transaction(purchase_input, is_consumable)
+    if result.success:
         print("Transaction finished for: ", product_id)
         purchase_completed.emit(product_id)
+
+func _process_purchase_dict(purchase: Dictionary) -> void:
+    await _process_purchase(purchase)
 
 # Public API
 func buy_product(product_id: String):
@@ -164,73 +167,50 @@ func buy_product(product_id: String):
         push_error("IAP not connected")
         return
 
-    var params = {
-        "sku": product_id,
-        "type": "inapp"
-    }
+    # Create typed RequestPurchaseProps
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
 
-    iap.request_purchase(JSON.stringify(params))
+    # Android configuration
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [product_id]
 
-func buy_subscription(subscription_id: String):
-    if not is_connected:
-        push_error("IAP not connected")
-        return
+    # iOS configuration
+    props.request.apple = Types.RequestPurchaseIosProps.new()
+    props.request.apple.sku = product_id
 
-    var params = {
-        "sku": subscription_id,
-        "type": "subs"
-    }
+    props.type = Types.ProductQueryType.IN_APP
 
-    # Android: Add offer token
-    if OS.get_name() == "Android":
-        var sub = _find_subscription(subscription_id)
-        if sub:
-            var offers = sub.get("subscriptionOfferDetailsAndroid", [])
-            if offers.size() > 0:
-                params["offerToken"] = offers[0].offerToken
-
-    iap.request_purchase(JSON.stringify(params))
+    # Returns typed purchase object or null
+    var purchase = GodotIapPlugin.request_purchase(props)
+    if purchase:
+        print("Purchase initiated: ", purchase.product_id)
 
 func restore_purchases():
     if not is_connected:
         push_error("IAP not connected")
         return
 
-    var purchases = JSON.parse_string(iap.get_available_purchases())
-    var restored_count = 0
+    # Returns typed VoidResult
+    var result = GodotIapPlugin.restore_purchases()
+    if result.success:
+        print("Restore initiated")
 
-    for purchase in purchases:
-        var is_valid = await _verify_purchase(purchase)
-        if is_valid:
-            _grant_purchase(purchase.productId)
-            restored_count += 1
-
-    return restored_count
-
-func get_product(product_id: String) -> Dictionary:
-    for product in products:
-        if product.productId == product_id:
-            return product
-    return {}
+func get_product(product_id: String):
+    return products.get(product_id, null)
 
 func get_product_price(product_id: String) -> String:
     var product = get_product(product_id)
-    if product.is_empty():
+    if product == null:
         return "$0.99"
-
-    return product.get("localizedPrice", "$0.99")
+    # Access typed property
+    return product.display_price if product.display_price else "$0.99"
 
 # Helper functions
-func _find_subscription(subscription_id: String) -> Dictionary:
-    for sub in subscriptions:
-        if sub.productId == subscription_id:
-            return sub
-    return {}
-
 func _is_consumable(product_id: String) -> bool:
     return product_id in [PRODUCT_IDS.coins_100, PRODUCT_IDS.coins_500]
 
-func _verify_purchase(purchase: Dictionary) -> bool:
+func _verify_purchase(purchase) -> bool:
     # For development, return true
     # For production, use IAPKit for server-side verification
     if OS.is_debug_build():
@@ -239,7 +219,7 @@ func _verify_purchase(purchase: Dictionary) -> bool:
     # Production: Verify with IAPKit
     return await _verify_with_iapkit(purchase)
 
-func _verify_with_iapkit(purchase: Dictionary) -> bool:
+func _verify_with_iapkit(purchase) -> bool:
     var http = HTTPRequest.new()
     add_child(http)
 
@@ -248,11 +228,17 @@ func _verify_with_iapkit(purchase: Dictionary) -> bool:
         "Authorization: Bearer YOUR_IAPKIT_API_KEY"  # Get from iapkit.com
     ]
 
+    var purchase_token = ""
+    if purchase is Object:
+        purchase_token = purchase.purchase_token if "purchase_token" in purchase else ""
+    else:
+        purchase_token = purchase.get("purchaseToken", "")
+
     var body = {}
     if OS.get_name() == "iOS":
-        body = { "apple": { "jws": purchase.get("purchaseToken", "") } }
+        body = { "apple": { "jws": purchase_token } }
     elif OS.get_name() == "Android":
-        body = { "google": { "purchaseToken": purchase.get("purchaseToken", "") } }
+        body = { "google": { "purchaseToken": purchase_token } }
 
     http.request(
         "https://api.iapkit.com/v1/verify",
@@ -302,6 +288,8 @@ func _grant_purchase(product_id: String):
 # store_ui.gd
 extends Control
 
+const Types = preload("res://addons/godot-iap/types.gd")
+
 @onready var product_container: VBoxContainer = $ProductContainer
 @onready var loading_label: Label = $LoadingLabel
 @onready var restore_button: Button = $RestoreButton
@@ -342,17 +330,14 @@ func _display_products(products: Array):
     # Create button for each product
     for product in products:
         var button = product_button_scene.instantiate()
-        button.setup(product)
-        button.pressed.connect(func(): _on_product_pressed(product.productId))
+        # Access typed properties directly
+        button.setup(product.id, product.title, product.display_price)
+        button.pressed.connect(func(): _on_product_pressed(product.id))
         product_container.add_child(button)
 
 func _on_product_pressed(product_id: String):
     print("Purchasing: ", product_id)
-
-    # Show loading state
     set_buttons_enabled(false)
-
-    # Request purchase
     IapManager.buy_product(product_id)
 
 func _on_purchase_completed(product_id: String):
@@ -361,20 +346,16 @@ func _on_purchase_completed(product_id: String):
 
 func _on_purchase_failed(error: Dictionary):
     set_buttons_enabled(true)
-
     var code = error.get("code", "")
     if code != "USER_CANCELED":
         show_error_dialog(error.get("message", "Purchase failed"))
 
 func _on_restore_pressed():
     set_buttons_enabled(false)
-    var count = await IapManager.restore_purchases()
+    IapManager.restore_purchases()
+    # Results come through purchase_updated signal
+    await get_tree().create_timer(2.0).timeout
     set_buttons_enabled(true)
-
-    if count > 0:
-        show_success_dialog("Restored %d purchases" % count)
-    else:
-        show_info_dialog("No purchases to restore")
 
 func set_buttons_enabled(enabled: bool):
     for child in product_container.get_children():
@@ -397,14 +378,6 @@ func show_error_dialog(message: String):
     add_child(dialog)
     dialog.popup_centered()
     dialog.confirmed.connect(dialog.queue_free)
-
-func show_info_dialog(message: String):
-    var dialog = AcceptDialog.new()
-    dialog.title = "Info"
-    dialog.dialog_text = message
-    add_child(dialog)
-    dialog.popup_centered()
-    dialog.confirmed.connect(dialog.queue_free)
 ```
 
 ### ProductButton.gd
@@ -415,16 +388,13 @@ extends Button
 
 @onready var title_label: Label = $TitleLabel
 @onready var price_label: Label = $PriceLabel
-@onready var description_label: Label = $DescriptionLabel
 
-var product_data: Dictionary = {}
+var product_id: String = ""
 
-func setup(product: Dictionary):
-    product_data = product
-
-    title_label.text = product.get("title", "Product")
-    price_label.text = product.get("localizedPrice", "$0.99")
-    description_label.text = product.get("description", "")
+func setup(id: String, title: String, price: String):
+    product_id = id
+    title_label.text = title
+    price_label.text = price
 ```
 
 ### GameState.gd (Autoload)
@@ -484,12 +454,26 @@ func load_state():
             file.close()
 ```
 
-## Usage
+## Type System
 
-1. Add `GameState` and `IapManager` as Autoloads in Project Settings
-2. Create the `StoreUI` scene with the required nodes
-3. Create a `ProductButton` scene for displaying products
-4. Call `IapManager.buy_product()` when user taps a product
+### Platform-Specific Types (Sealed Class Pattern)
+
+GDScript doesn't support Union types like Dart's `sealed class`. Functions that return platform-specific types use:
+
+| Return Type | Description |
+|-------------|-------------|
+| `-> Array` | Array of `Types.ProductAndroid` OR `Types.ProductIOS` |
+| `-> Variant` | Typed object OR `null` |
+
+```gdscript
+# fetch_products returns Array of typed products
+var products = GodotIapPlugin.fetch_products(request)
+for product in products:
+    # On Android: product is Types.ProductAndroid
+    # On iOS: product is Types.ProductIOS
+    # Both have common properties: id, title, display_price
+    print(product.id, " - ", product.display_price)
+```
 
 ## Testing
 

@@ -43,14 +43,26 @@ godot-iap/
 ### GDScript Conventions
 
 ```gdscript
+# Load OpenIAP types
+const Types = preload("res://addons/godot-iap/types.gd")
+
 # Class names: PascalCase
 class_name IapManager
 
 # Function names: snake_case
+# Use typed parameters and return types from Types
 func init_connection() -> bool:
     pass
 
-func request_purchase(product_id: String) -> Dictionary:
+func fetch_products(request: Types.ProductRequest) -> Array:
+    # Returns Array of Types.ProductAndroid or Types.ProductIOS
+    pass
+
+func request_purchase(props: Types.RequestPurchaseProps) -> Variant:
+    # Returns Types.PurchaseAndroid or Types.PurchaseIOS, or null
+    pass
+
+func finish_transaction(purchase: Types.PurchaseInput, is_consumable: bool) -> Types.VoidResult:
     pass
 
 # Signal names: snake_case
@@ -59,6 +71,61 @@ signal purchase_error(error: Dictionary)
 
 # Constants: SCREAMING_SNAKE_CASE
 const PRODUCT_PREMIUM := "com.example.premium"
+```
+
+### Types (auto-generated from OpenIAP GraphQL schema)
+
+Types are generated from `openiap/packages/gql` and should not be modified manually:
+- `scripts/generate-types.sh` - Downloads latest `types.gd` from openiap releases
+- `Example/addons/godot-iap/types.gd` - Auto-generated type definitions
+
+Key types:
+- `Types.ProductRequest` - Input for `fetch_products()`
+- `Types.ProductAndroid`, `Types.ProductIOS` - Product info
+- `Types.RequestPurchaseProps` - Input for `request_purchase()`
+- `Types.PurchaseAndroid`, `Types.PurchaseIOS` - Purchase info
+- `Types.PurchaseInput` - Input for `finish_transaction()`
+- `Types.VoidResult` - Result with `success` boolean
+
+### Platform-Specific Return Types (Sealed Class Pattern)
+
+GDScript doesn't support Union types like Dart's `sealed class` or TypeScript's `|` operator.
+For functions that return platform-specific types, we use `-> Array` or `-> Variant`:
+
+```gdscript
+# Dart equivalent: List<Product> where Product is sealed (ProductAndroid | ProductIOS)
+# GDScript: Returns Array containing Types.ProductAndroid OR Types.ProductIOS
+func fetch_products(request: Types.ProductRequest) -> Array
+
+# Dart equivalent: Purchase? where Purchase is sealed (PurchaseAndroid | PurchaseIOS)
+# GDScript: Returns Types.PurchaseAndroid OR Types.PurchaseIOS OR null
+func request_purchase(props: Types.RequestPurchaseProps) -> Variant
+```
+
+**When to use each pattern:**
+
+| Return Type | When to Use | Example Types |
+|-------------|-------------|---------------|
+| `-> Array` | Multiple items, platform-specific types | `ProductAndroid[]`, `ProductIOS[]`, `PurchaseAndroid[]`, `PurchaseIOS[]` |
+| `-> Variant` | Single item OR null, platform-specific | `PurchaseAndroid?`, `PurchaseIOS?`, `VerifyPurchaseResultAndroid?` |
+| `-> Types.X` | Single type, same on all platforms | `VoidResult`, `BoolResult` |
+
+**Usage example:**
+```gdscript
+# fetch_products returns Array of typed objects
+var products: Array = GodotIapPlugin.fetch_products(request)
+for product in products:
+    # On Android: product is Types.ProductAndroid
+    # On iOS: product is Types.ProductIOS
+    # Both have common properties: id, title, display_price
+    print(product.id, " - ", product.display_price)
+
+# request_purchase returns Variant (typed object or null)
+var purchase = GodotIapPlugin.request_purchase(props)
+if purchase:
+    # On Android: purchase is Types.PurchaseAndroid
+    # On iOS: purchase is Types.PurchaseIOS
+    print("Purchased: ", purchase.product_id)
 ```
 
 ## Dependencies

@@ -8,7 +8,14 @@ import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 <IapKitBanner />
 
-Methods available only on Android platform using Google Play Billing Library.
+Methods available only on Android platform using Google Play Billing Library. All methods use typed parameters and return typed objects.
+
+## Setup
+
+```gdscript
+# Load OpenIAP types
+const Types = preload("res://addons/godot-iap/types.gd")
+```
 
 ## Purchase Management
 
@@ -17,7 +24,7 @@ Methods available only on Android platform using Google Play Billing Library.
 Acknowledge a non-consumable purchase. **Required for all non-consumable purchases within 3 days.**
 
 ```gdscript
-func acknowledge_purchase_android(purchase_token: String) -> String
+func acknowledge_purchase_android(purchase_token: String) -> Types.VoidResult
 ```
 
 **Parameters:**
@@ -25,25 +32,17 @@ func acknowledge_purchase_android(purchase_token: String) -> String
 |-----------|------|-------------|
 | `purchase_token` | `String` | Purchase token from purchase |
 
-**Returns:** JSON string with result
-
-```json
-{
-  "success": true
-}
-```
+**Returns:** `Types.VoidResult`
 
 **Example:**
 ```gdscript
-func handle_non_consumable_purchase(purchase: Dictionary):
+func handle_non_consumable_purchase(purchase):
     # First verify on server
     var verified = await verify_on_server(purchase)
     if verified:
         # Acknowledge the purchase
-        var result = JSON.parse_string(
-            iap.acknowledge_purchase_android(purchase.purchaseToken)
-        )
-        if result.get("success", false):
+        var result = GodotIapPlugin.acknowledge_purchase_android(purchase.purchase_token)
+        if result.success:
             # Grant the content
             unlock_premium_content()
 ```
@@ -59,7 +58,7 @@ Non-consumable purchases that aren't acknowledged within 3 days will be automati
 Consume a consumable purchase. This allows the product to be purchased again.
 
 ```gdscript
-func consume_purchase_android(purchase_token: String) -> String
+func consume_purchase_android(purchase_token: String) -> Types.VoidResult
 ```
 
 **Parameters:**
@@ -67,17 +66,11 @@ func consume_purchase_android(purchase_token: String) -> String
 |-----------|------|-------------|
 | `purchase_token` | `String` | Purchase token from purchase |
 
-**Returns:** JSON string with result
-
-```json
-{
-  "success": true
-}
-```
+**Returns:** `Types.VoidResult`
 
 **Example:**
 ```gdscript
-func handle_consumable_purchase(purchase: Dictionary):
+func handle_consumable_purchase(purchase):
     # First verify on server
     var verified = await verify_on_server(purchase)
     if verified:
@@ -85,10 +78,8 @@ func handle_consumable_purchase(purchase: Dictionary):
         add_coins(100)
 
         # Consume the purchase
-        var result = JSON.parse_string(
-            iap.consume_purchase_android(purchase.purchaseToken)
-        )
-        if result.get("success", false):
+        var result = GodotIapPlugin.consume_purchase_android(purchase.purchase_token)
+        if result.success:
             print("Purchase consumed, can buy again")
 ```
 
@@ -104,22 +95,12 @@ Get the user's country code based on Google Play settings.
 func get_storefront_android() -> String
 ```
 
-**Returns:** JSON string with country info
-
-```json
-{
-  "success": true,
-  "countryCode": "US"
-}
-```
+**Returns:** `String` - Country code (e.g., "US", "KR")
 
 **Example:**
 ```gdscript
-func get_user_country():
-    var result = JSON.parse_string(iap.get_storefront_android())
-    if result.get("success", false):
-        return result.get("countryCode", "")
-    return ""
+func get_user_country() -> String:
+    return GodotIapPlugin.get_storefront_android()
 ```
 
 ---
@@ -132,12 +113,12 @@ Get the app's package name.
 func get_package_name_android() -> String
 ```
 
-**Returns:** Package name as string
+**Returns:** `String` - Package name
 
 **Example:**
 ```gdscript
 func log_app_info():
-    var package = iap.get_package_name_android()
+    var package = GodotIapPlugin.get_package_name_android()
     print("Package: ", package)  # e.g., "com.yourcompany.game"
 ```
 
@@ -154,17 +135,10 @@ These methods are deprecated in favor of the Billing Programs API. They may be r
 Check if alternative billing is available for this user/region.
 
 ```gdscript
-func check_alternative_billing_availability_android() -> String
+func check_alternative_billing_availability_android() -> Types.BoolResult
 ```
 
-**Returns:** JSON string with availability
-
-```json
-{
-  "success": true,
-  "isAvailable": true
-}
-```
+**Returns:** `Types.BoolResult`
 
 ---
 
@@ -173,17 +147,10 @@ func check_alternative_billing_availability_android() -> String
 Show the alternative billing information dialog to the user.
 
 ```gdscript
-func show_alternative_billing_dialog_android() -> String
+func show_alternative_billing_dialog_android() -> Variant
 ```
 
-**Returns:** JSON string with result
-
-```json
-{
-  "success": true,
-  "userAccepted": true
-}
-```
+**Returns:** `Variant` - `Types.AlternativeBillingDialogResultAndroid` or `null`
 
 ---
 
@@ -192,17 +159,10 @@ func show_alternative_billing_dialog_android() -> String
 Create a token for reporting alternative billing transactions.
 
 ```gdscript
-func create_alternative_billing_token_android() -> String
+func create_alternative_billing_token_android() -> Variant
 ```
 
-**Returns:** JSON string with token
-
-```json
-{
-  "success": true,
-  "token": "external_transaction_token_here"
-}
-```
+**Returns:** `Variant` - `Types.AlternativeBillingTokenAndroid` or `null`
 
 ---
 
@@ -215,39 +175,28 @@ Modern API for external billing and alternative payment options.
 Check if a specific billing program is available.
 
 ```gdscript
-func is_billing_program_available_android(billing_program: String) -> String
+func is_billing_program_available_android(billing_program: Types.BillingProgramAndroid) -> bool
 ```
 
 **Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `billing_program` | `String` | Program type (see table below) |
+| `billing_program` | `Types.BillingProgramAndroid` | Program type enum |
 
 **Billing Programs:**
 | Program | Description |
 |---------|-------------|
-| `external-offer` | External offer program |
-| `external-content-link` | External content link |
-| `external-payments` | External payments (user choice) |
-| `user-choice-billing` | User choice billing |
+| `EXTERNAL_OFFER` | External offer program |
+| `EXTERNAL_CONTENT_LINK` | External content link |
+| `EXTERNAL_PAYMENTS` | External payments (user choice) |
+| `USER_CHOICE_BILLING` | User choice billing |
 
-**Returns:** JSON string with availability
-
-```json
-{
-  "success": true,
-  "isAvailable": true,
-  "billingProgram": "external-offer"
-}
-```
+**Returns:** `bool`
 
 **Example:**
 ```gdscript
 func check_external_offer_availability():
-    var result = JSON.parse_string(
-        iap.is_billing_program_available_android("external-offer")
-    )
-    if result.get("isAvailable", false):
+    if GodotIapPlugin.is_billing_program_available_android(Types.BillingProgramAndroid.EXTERNAL_OFFER):
         show_external_offer_button()
 ```
 
@@ -258,60 +207,27 @@ func check_external_offer_availability():
 Launch an external link for billing programs.
 
 ```gdscript
-func launch_external_link_android(params_json: String) -> String
+func launch_external_link_android(params: Types.ExternalLinkParamsAndroid) -> Types.VoidResult
 ```
 
 **Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `params_json` | `String` | JSON object with link parameters |
+| `params` | `Types.ExternalLinkParamsAndroid` | Link parameters |
 
-**Parameters Object:**
-```json
-{
-  "billingProgram": "external-offer",
-  "launchMode": "launch-in-external-browser-or-app",
-  "linkType": "link-to-digital-content-offer",
-  "linkUri": "https://your-store.com/offer"
-}
-```
-
-**Launch Modes:**
-| Mode | Description |
-|------|-------------|
-| `launch-in-external-browser-or-app` | Open in browser or app |
-| `caller-will-launch-link` | App handles the launch |
-| `unspecified` | Default behavior |
-
-**Link Types:**
-| Type | Description |
-|------|-------------|
-| `link-to-digital-content-offer` | Link to digital content |
-| `link-to-app-download` | Link to app download |
-| `unspecified` | Default behavior |
-
-**Returns:** JSON string with result
-
-```json
-{
-  "success": true,
-  "launched": true
-}
-```
+**Returns:** `Types.VoidResult`
 
 **Example:**
 ```gdscript
 func open_external_offer():
-    var params = {
-        "billingProgram": "external-offer",
-        "launchMode": "launch-in-external-browser-or-app",
-        "linkType": "link-to-digital-content-offer",
-        "linkUri": "https://your-store.com/special-offer"
-    }
-    var result = JSON.parse_string(
-        iap.launch_external_link_android(JSON.stringify(params))
-    )
-    if result.get("launched", false):
+    var params = Types.ExternalLinkParamsAndroid.new()
+    params.billing_program = Types.BillingProgramAndroid.EXTERNAL_OFFER
+    params.launch_mode = Types.ExternalLaunchModeAndroid.LAUNCH_IN_BROWSER
+    params.link_type = Types.ExternalLinkTypeAndroid.DIGITAL_CONTENT
+    params.link_uri = "https://your-store.com/special-offer"
+
+    var result = GodotIapPlugin.launch_external_link_android(params)
+    if result.success:
         print("External link opened")
 ```
 
@@ -322,32 +238,24 @@ func open_external_offer():
 Create reporting details for external transactions.
 
 ```gdscript
-func create_billing_program_reporting_details_android(billing_program: String) -> String
+func create_billing_program_reporting_details_android(billing_program: Types.BillingProgramAndroid) -> Variant
 ```
 
 **Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `billing_program` | `String` | Billing program type |
+| `billing_program` | `Types.BillingProgramAndroid` | Billing program type |
 
-**Returns:** JSON string with token
-
-```json
-{
-  "success": true,
-  "billingProgram": "external-offer",
-  "externalTransactionToken": "token_for_reporting"
-}
-```
+**Returns:** `Variant` - `Types.BillingProgramReportingDetailsAndroid` or `null`
 
 **Example:**
 ```gdscript
 func get_reporting_token():
-    var result = JSON.parse_string(
-        iap.create_billing_program_reporting_details_android("external-offer")
+    var result = GodotIapPlugin.create_billing_program_reporting_details_android(
+        Types.BillingProgramAndroid.EXTERNAL_OFFER
     )
-    if result.get("success", false):
-        var token = result.get("externalTransactionToken", "")
+    if result:
+        var token = result.external_transaction_token
         # Use this token when reporting external transactions to Google
         report_external_transaction(token)
 ```
@@ -389,42 +297,48 @@ func _on_developer_provided_billing(data: Dictionary):
 ```gdscript
 extends Node
 
-var iap: GodotIap
+const Types = preload("res://addons/godot-iap/types.gd")
 
 func _ready():
-    if Engine.has_singleton("GodotIap"):
-        iap = Engine.get_singleton("GodotIap")
-        _setup_signals()
+    _setup_signals()
+    if GodotIapPlugin.init_connection():
+        _check_pending_purchases()
 
 func _setup_signals():
-    iap.purchase_updated.connect(_on_purchase_updated)
-    iap.purchase_error.connect(_on_purchase_error)
-    iap.user_choice_billing_android.connect(_on_user_choice_billing)
+    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
+    GodotIapPlugin.purchase_error.connect(_on_purchase_error)
+    GodotIapPlugin.user_choice_billing_android.connect(_on_user_choice_billing)
+
+func _check_pending_purchases():
+    var purchases = GodotIapPlugin.get_available_purchases()
+    for purchase in purchases:
+        if not purchase.is_acknowledged:
+            await handle_purchase(purchase)
 
 func _on_purchase_updated(purchase: Dictionary):
     var state = purchase.get("purchaseState", "")
     var is_acknowledged = purchase.get("isAcknowledged", false)
 
-    if state == "purchased" and not is_acknowledged:
-        await handle_purchase(purchase)
+    if (state == "purchased" or state == "Purchased") and not is_acknowledged:
+        await handle_purchase_dict(purchase)
 
-func handle_purchase(purchase: Dictionary):
+func handle_purchase_dict(purchase: Dictionary):
     # Verify on server
     var verified = await verify_on_server(purchase)
     if not verified:
         return
 
-    var product_id = purchase.productId
-    var purchase_token = purchase.purchaseToken
+    var product_id = purchase.get("productId", "")
+    var purchase_token = purchase.get("purchaseToken", "")
 
     if is_consumable(product_id):
-        # Consume the purchase
+        # Grant and consume
         grant_consumable(product_id)
-        iap.consume_purchase_android(purchase_token)
+        GodotIapPlugin.consume_purchase_android(purchase_token)
     else:
-        # Acknowledge non-consumable
+        # Grant and acknowledge
         grant_non_consumable(product_id)
-        iap.acknowledge_purchase_android(purchase_token)
+        GodotIapPlugin.acknowledge_purchase_android(purchase_token)
 
 func _on_purchase_error(error: Dictionary):
     var code = error.get("code", "")
@@ -434,10 +348,10 @@ func _on_purchase_error(error: Dictionary):
             print("User canceled")
         "ITEM_ALREADY_OWNED":
             # Restore the purchase
-            var purchases = JSON.parse_string(iap.get_available_purchases())
+            var purchases = GodotIapPlugin.get_available_purchases()
             for p in purchases:
-                if not p.get("isAcknowledged", false):
-                    handle_purchase(p)
+                if not p.is_acknowledged:
+                    await handle_purchase(p)
         "ITEM_NOT_OWNED":
             print("Item not owned")
         _:

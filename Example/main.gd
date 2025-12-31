@@ -291,8 +291,10 @@ func _update_button_text(button_path: String, product_id: String, fallback: Stri
 		return
 	if IapManager.products.has(product_id):
 		var product = IapManager.products[product_id]
-		var title = product.get("title", product.get("localizedTitle", fallback))
-		var price = product.get("displayPrice", product.get("localizedPrice", ""))
+		# Products are now typed objects (Types.ProductAndroid or Types.ProductIOS)
+		# Access properties directly instead of using .get()
+		var title = product.title if product.title else fallback
+		var price = product.display_price if product.display_price else ""
 		if price != "":
 			button.text = "%s - %s" % [title, price]
 		else:

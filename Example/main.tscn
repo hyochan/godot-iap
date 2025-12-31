@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://d1a2b3c4d5e6f"]
 
-[ext_resource type="Script" path="res://main.gd" id="1_main_script"]
+[ext_resource type="Script" uid="uid://b61xmuqhhbuvl" path="res://main.gd" id="1_main_script"]
 [ext_resource type="PackedScene" uid="uid://b8qk2x3p6e1wy" path="res://player.tscn" id="2_player"]
 
 [node name="Main" type="Node2D"]
@@ -47,8 +47,8 @@ offset_left = 30.0
 offset_top = 210.0
 offset_right = 400.0
 offset_bottom = 250.0
-theme_override_font_sizes/font_size = 24
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_override_font_sizes/font_size = 24
 text = "Connecting..."
 
 [node name="LoadingLabel" type="Label" parent="UI"]
@@ -56,8 +56,8 @@ offset_left = 260.0
 offset_top = 600.0
 offset_right = 460.0
 offset_bottom = 680.0
-theme_override_font_sizes/font_size = 48
 theme_override_colors/font_color = Color(1, 0.8, 0, 1)
+theme_override_font_sizes/font_size = 48
 text = "Loading..."
 horizontal_alignment = 1
 
@@ -98,11 +98,13 @@ offset_right = 690.0
 offset_bottom = 1080.0
 
 [node name="PanelBg" type="ColorRect" parent="UI/StorePanel"]
+layout_mode = 0
 offset_right = 660.0
 offset_bottom = 880.0
 color = Color(0.15, 0.15, 0.2, 1)
 
 [node name="TitleLabel" type="Label" parent="UI/StorePanel"]
+layout_mode = 0
 offset_left = 20.0
 offset_top = 20.0
 offset_right = 640.0
@@ -112,6 +114,7 @@ text = "Store"
 horizontal_alignment = 1
 
 [node name="CloseButton" type="Button" parent="UI/StorePanel"]
+layout_mode = 0
 offset_left = 590.0
 offset_top = 15.0
 offset_right = 650.0
@@ -120,6 +123,7 @@ theme_override_font_sizes/font_size = 24
 text = "X"
 
 [node name="VBoxContainer" type="VBoxContainer" parent="UI/StorePanel"]
+layout_mode = 0
 offset_left = 20.0
 offset_top = 80.0
 offset_right = 640.0
@@ -128,6 +132,7 @@ theme_override_constants/separation = 15
 
 [node name="Buy10BulbsButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "10 Bulbs"
 text_overrun_behavior = 3
@@ -135,6 +140,7 @@ clip_text = true
 
 [node name="Buy30BulbsButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "30 Bulbs"
 text_overrun_behavior = 3
@@ -142,6 +148,7 @@ clip_text = true
 
 [node name="BuyPremiumButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "Premium"
 text_overrun_behavior = 3
@@ -149,6 +156,7 @@ clip_text = true
 
 [node name="BuyPremiumYearButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "Premium Year"
 text_overrun_behavior = 3
@@ -156,9 +164,11 @@ clip_text = true
 
 [node name="Separator" type="HSeparator" parent="UI/StorePanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
 
 [node name="RestoreButton" type="Button" parent="UI/StorePanel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "Restore Purchases"
 text_overrun_behavior = 3

@@ -2462,7 +2462,7 @@ class RequestPurchaseIosProps:
 
 class RequestPurchaseProps:
 	## Per-platform purchase request props
-	var request_purchase: RequestPurchasePropsByPlatforms
+	var request: RequestPurchasePropsByPlatforms
 	## Per-platform subscription request props
 	var request_subscription: RequestSubscriptionPropsByPlatforms
 	## Explicit purchase type hint (defaults to in-app)
@@ -2474,9 +2474,9 @@ class RequestPurchaseProps:
 		var obj = RequestPurchaseProps.new()
 		if data.has("requestPurchase") and data["requestPurchase"] != null:
 			if data["requestPurchase"] is Dictionary:
-				obj.request_purchase = RequestPurchasePropsByPlatforms.from_dict(data["requestPurchase"])
+				obj.request = RequestPurchasePropsByPlatforms.from_dict(data["requestPurchase"])
 			else:
-				obj.request_purchase = data["requestPurchase"]
+				obj.request = data["requestPurchase"]
 		if data.has("requestSubscription") and data["requestSubscription"] != null:
 			if data["requestSubscription"] is Dictionary:
 				obj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(data["requestSubscription"])
@@ -2490,11 +2490,11 @@ class RequestPurchaseProps:
 
 	func to_dict() -> Dictionary:
 		var result = {}
-		if request_purchase != null:
-			if request_purchase.has_method("to_dict"):
-				result["requestPurchase"] = request_purchase.to_dict()
+		if request != null:
+			if request.has_method("to_dict"):
+				result["requestPurchase"] = request.to_dict()
 			else:
-				result["requestPurchase"] = request_purchase
+				result["requestPurchase"] = request
 		if request_subscription != null:
 			if request_subscription.has_method("to_dict"):
 				result["requestSubscription"] = request_subscription.to_dict()
@@ -3185,3 +3185,973 @@ const SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES = {
 	SubscriptionReplacementModeAndroid.DEFERRED: "DEFERRED",
 	SubscriptionReplacementModeAndroid.KEEP_EXISTING: "KEEP_EXISTING"
 }
+
+# ============================================================================
+# Query Types
+# ============================================================================
+
+class Query:
+	class _placeholderField:
+		const name = "_placeholder"
+		const snake_name = "_placeholder"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Retrieve products or subscriptions from the store
+	class fetchProductsField:
+		const name = "fetchProducts"
+		const snake_name = "fetch_products"
+		class Args:
+			var params: ProductRequest
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("params") and data["params"] != null:
+					obj.params = data["params"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["params"] = params
+				return result
+		const return_type = "FetchProductsResult"
+		const is_array = false
+
+	## Get all available purchases for the current user
+	class getAvailablePurchasesField:
+		const name = "getAvailablePurchases"
+		const snake_name = "get_available_purchases"
+		class Args:
+			var options: PurchaseOptions
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "Purchase"
+		const is_array = true
+
+	## Get active subscriptions (filters by subscriptionIds when provided)
+	class getActiveSubscriptionsField:
+		const name = "getActiveSubscriptions"
+		const snake_name = "get_active_subscriptions"
+		class Args:
+			var subscription_ids: Array[String]
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("subscriptionIds") and data["subscriptionIds"] != null:
+					obj.subscription_ids = data["subscriptionIds"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["subscriptionIds"] = subscription_ids
+				return result
+		const return_type = "ActiveSubscription"
+		const is_array = true
+
+	## Check whether the user has active subscriptions
+	class hasActiveSubscriptionsField:
+		const name = "hasActiveSubscriptions"
+		const snake_name = "has_active_subscriptions"
+		class Args:
+			var subscription_ids: Array[String]
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("subscriptionIds") and data["subscriptionIds"] != null:
+					obj.subscription_ids = data["subscriptionIds"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["subscriptionIds"] = subscription_ids
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Get the current storefront country code
+	class getStorefrontField:
+		const name = "getStorefront"
+		const snake_name = "get_storefront"
+		class Args:
+			pass
+		const return_type = "String"
+		const is_array = false
+
+	## Get the current App Store storefront country code
+	class getStorefrontIOSField:
+		const name = "getStorefrontIOS"
+		const snake_name = "get_storefront_ios"
+		class Args:
+			pass
+		const return_type = "String"
+		const is_array = false
+
+	## Get the currently promoted product (iOS 11+)
+	class getPromotedProductIOSField:
+		const name = "getPromotedProductIOS"
+		const snake_name = "get_promoted_product_ios"
+		class Args:
+			pass
+		const return_type = "ProductIOS"
+		const is_array = false
+
+	## Check if external purchase notice sheet can be presented (iOS 18.2+)
+	class canPresentExternalPurchaseNoticeIOSField:
+		const name = "canPresentExternalPurchaseNoticeIOS"
+		const snake_name = "can_present_external_purchase_notice_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Retrieve all pending transactions in the StoreKit queue
+	class getPendingTransactionsIOSField:
+		const name = "getPendingTransactionsIOS"
+		const snake_name = "get_pending_transactions_ios"
+		class Args:
+			pass
+		const return_type = "PurchaseIOS"
+		const is_array = true
+
+	## Check introductory offer eligibility for a subscription group
+	class isEligibleForIntroOfferIOSField:
+		const name = "isEligibleForIntroOfferIOS"
+		const snake_name = "is_eligible_for_intro_offer_ios"
+		class Args:
+			var group_id: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("groupID") and data["groupID"] != null:
+					obj.group_id = data["groupID"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["groupID"] = group_id
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Get StoreKit 2 subscription status details (iOS 15+)
+	class subscriptionStatusIOSField:
+		const name = "subscriptionStatusIOS"
+		const snake_name = "subscription_status_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "SubscriptionStatusIOS"
+		const is_array = true
+
+	## Get current StoreKit 2 entitlements (iOS 15+)
+	class currentEntitlementIOSField:
+		const name = "currentEntitlementIOS"
+		const snake_name = "current_entitlement_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "PurchaseIOS"
+		const is_array = false
+
+	## Get the latest transaction for a product using StoreKit 2
+	class latestTransactionIOSField:
+		const name = "latestTransactionIOS"
+		const snake_name = "latest_transaction_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "PurchaseIOS"
+		const is_array = false
+
+	## Verify a StoreKit 2 transaction signature
+	class isTransactionVerifiedIOSField:
+		const name = "isTransactionVerifiedIOS"
+		const snake_name = "is_transaction_verified_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Get the transaction JWS (StoreKit 2)
+	class getTransactionJwsIOSField:
+		const name = "getTransactionJwsIOS"
+		const snake_name = "get_transaction_jws_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "String"
+		const is_array = false
+
+	## Get base64-encoded receipt data for validation
+	class getReceiptDataIOSField:
+		const name = "getReceiptDataIOS"
+		const snake_name = "get_receipt_data_ios"
+		class Args:
+			pass
+		const return_type = "String"
+		const is_array = false
+
+	## Fetch the current app transaction (iOS 16+)
+	class getAppTransactionIOSField:
+		const name = "getAppTransactionIOS"
+		const snake_name = "get_app_transaction_ios"
+		class Args:
+			pass
+		const return_type = "AppTransaction"
+		const is_array = false
+
+	## Validate a receipt for a specific product
+	class validateReceiptIOSField:
+		const name = "validateReceiptIOS"
+		const snake_name = "validate_receipt_ios"
+		class Args:
+			var options: VerifyPurchaseProps
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "VerifyPurchaseResultIOS"
+		const is_array = false
+
+
+# ============================================================================
+# Mutation Types
+# ============================================================================
+
+class Mutation:
+	class _placeholderField:
+		const name = "_placeholder"
+		const snake_name = "_placeholder"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Establish the platform billing connection
+	class initConnectionField:
+		const name = "initConnection"
+		const snake_name = "init_connection"
+		class Args:
+			var config: InitConnectionConfig
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("config") and data["config"] != null:
+					obj.config = data["config"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["config"] = config
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Close the platform billing connection
+	class endConnectionField:
+		const name = "endConnection"
+		const snake_name = "end_connection"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Initiate a purchase flow; rely on events for final state
+	class requestPurchaseField:
+		const name = "requestPurchase"
+		const snake_name = "request_purchase"
+		class Args:
+			var params: RequestPurchaseProps
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("params") and data["params"] != null:
+					obj.params = data["params"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["params"] = params
+				return result
+		const return_type = "RequestPurchaseResult"
+		const is_array = false
+
+	## Finish a transaction after validating receipts
+	class finishTransactionField:
+		const name = "finishTransaction"
+		const snake_name = "finish_transaction"
+		class Args:
+			var purchase: PurchaseInput
+			var is_consumable: bool
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("purchase") and data["purchase"] != null:
+					obj.purchase = data["purchase"]
+				if data.has("isConsumable") and data["isConsumable"] != null:
+					obj.is_consumable = data["isConsumable"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["purchase"] = purchase
+				result["isConsumable"] = is_consumable
+				return result
+		const return_type = "VoidResult"
+		const is_array = false
+
+	## Restore completed purchases across platforms
+	class restorePurchasesField:
+		const name = "restorePurchases"
+		const snake_name = "restore_purchases"
+		class Args:
+			pass
+		const return_type = "VoidResult"
+		const is_array = false
+
+	## Open the native subscription management surface
+	class deepLinkToSubscriptionsField:
+		const name = "deepLinkToSubscriptions"
+		const snake_name = "deep_link_to_subscriptions"
+		class Args:
+			var options: DeepLinkOptions
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "VoidResult"
+		const is_array = false
+
+	## Validate purchase receipts with the configured providers
+	class validateReceiptField:
+		const name = "validateReceipt"
+		const snake_name = "validate_receipt"
+		class Args:
+			var options: VerifyPurchaseProps
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "VerifyPurchaseResult"
+		const is_array = false
+
+	## Verify purchases with the configured providers
+	class verifyPurchaseField:
+		const name = "verifyPurchase"
+		const snake_name = "verify_purchase"
+		class Args:
+			var options: VerifyPurchaseProps
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "VerifyPurchaseResult"
+		const is_array = false
+
+	## Verify purchases with a specific provider (e.g., IAPKit)
+	class verifyPurchaseWithProviderField:
+		const name = "verifyPurchaseWithProvider"
+		const snake_name = "verify_purchase_with_provider"
+		class Args:
+			var options: VerifyPurchaseWithProviderProps
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("options") and data["options"] != null:
+					obj.options = data["options"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["options"] = options
+				return result
+		const return_type = "VerifyPurchaseWithProviderResult"
+		const is_array = false
+
+	## Clear pending transactions from the StoreKit payment queue
+	class clearTransactionIOSField:
+		const name = "clearTransactionIOS"
+		const snake_name = "clear_transaction_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Purchase the promoted product surfaced by the App Store.
+	class requestPurchaseOnPromotedProductIOSField:
+		const name = "requestPurchaseOnPromotedProductIOS"
+		const snake_name = "request_purchase_on_promoted_product_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Open subscription management UI and return changed purchases (iOS 15+)
+	class showManageSubscriptionsIOSField:
+		const name = "showManageSubscriptionsIOS"
+		const snake_name = "show_manage_subscriptions_ios"
+		class Args:
+			pass
+		const return_type = "PurchaseIOS"
+		const is_array = true
+
+	## Initiate a refund request for a product (iOS 15+)
+	class beginRefundRequestIOSField:
+		const name = "beginRefundRequestIOS"
+		const snake_name = "begin_refund_request_ios"
+		class Args:
+			var sku: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("sku") and data["sku"] != null:
+					obj.sku = data["sku"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["sku"] = sku
+				return result
+		const return_type = "String"
+		const is_array = false
+
+	## Force a StoreKit sync for transactions (iOS 15+)
+	class syncIOSField:
+		const name = "syncIOS"
+		const snake_name = "sync_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Present the App Store code redemption sheet
+	class presentCodeRedemptionSheetIOSField:
+		const name = "presentCodeRedemptionSheetIOS"
+		const snake_name = "present_code_redemption_sheet_ios"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Present external purchase notice sheet (iOS 18.2+)
+	class presentExternalPurchaseNoticeSheetIOSField:
+		const name = "presentExternalPurchaseNoticeSheetIOS"
+		const snake_name = "present_external_purchase_notice_sheet_ios"
+		class Args:
+			pass
+		const return_type = "ExternalPurchaseNoticeResultIOS"
+		const is_array = false
+
+	## Present external purchase custom link with StoreKit UI (iOS 18.2+)
+	class presentExternalPurchaseLinkIOSField:
+		const name = "presentExternalPurchaseLinkIOS"
+		const snake_name = "present_external_purchase_link_ios"
+		class Args:
+			var url: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("url") and data["url"] != null:
+					obj.url = data["url"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["url"] = url
+				return result
+		const return_type = "ExternalPurchaseLinkResultIOS"
+		const is_array = false
+
+	## Acknowledge a non-consumable purchase or subscription
+	class acknowledgePurchaseAndroidField:
+		const name = "acknowledgePurchaseAndroid"
+		const snake_name = "acknowledge_purchase_android"
+		class Args:
+			var purchase_token: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("purchaseToken") and data["purchaseToken"] != null:
+					obj.purchase_token = data["purchaseToken"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["purchaseToken"] = purchase_token
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Consume a purchase token so it can be repurchased
+	class consumePurchaseAndroidField:
+		const name = "consumePurchaseAndroid"
+		const snake_name = "consume_purchase_android"
+		class Args:
+			var purchase_token: String
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("purchaseToken") and data["purchaseToken"] != null:
+					obj.purchase_token = data["purchaseToken"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["purchaseToken"] = purchase_token
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Check if alternative billing is available for this user/device
+	class checkAlternativeBillingAvailabilityAndroidField:
+		const name = "checkAlternativeBillingAvailabilityAndroid"
+		const snake_name = "check_alternative_billing_availability_android"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Show alternative billing information dialog to user
+	class showAlternativeBillingDialogAndroidField:
+		const name = "showAlternativeBillingDialogAndroid"
+		const snake_name = "show_alternative_billing_dialog_android"
+		class Args:
+			pass
+		const return_type = "Boolean"
+		const is_array = false
+
+	## Create external transaction token for Google Play reporting
+	class createAlternativeBillingTokenAndroidField:
+		const name = "createAlternativeBillingTokenAndroid"
+		const snake_name = "create_alternative_billing_token_android"
+		class Args:
+			pass
+		const return_type = "String"
+		const is_array = false
+
+	## Check if a billing program is available for the current user
+	class isBillingProgramAvailableAndroidField:
+		const name = "isBillingProgramAvailableAndroid"
+		const snake_name = "is_billing_program_available_android"
+		class Args:
+			var program: BillingProgramAndroid
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("program") and data["program"] != null:
+					obj.program = data["program"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["program"] = program
+				return result
+		const return_type = "BillingProgramAvailabilityResultAndroid"
+		const is_array = false
+
+	## Create reporting details for a billing program
+	class createBillingProgramReportingDetailsAndroidField:
+		const name = "createBillingProgramReportingDetailsAndroid"
+		const snake_name = "create_billing_program_reporting_details_android"
+		class Args:
+			var program: BillingProgramAndroid
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("program") and data["program"] != null:
+					obj.program = data["program"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["program"] = program
+				return result
+		const return_type = "BillingProgramReportingDetailsAndroid"
+		const is_array = false
+
+	## Launch external link flow for external billing programs
+	class launchExternalLinkAndroidField:
+		const name = "launchExternalLinkAndroid"
+		const snake_name = "launch_external_link_android"
+		class Args:
+			var params: LaunchExternalLinkParamsAndroid
+
+			static func from_dict(data: Dictionary) -> Args:
+				var obj = Args.new()
+				if data.has("params") and data["params"] != null:
+					obj.params = data["params"]
+				return obj
+
+			func to_dict() -> Dictionary:
+				var result = {}
+				result["params"] = params
+				return result
+		const return_type = "Boolean"
+		const is_array = false
+
+
+# ============================================================================
+# API Wrapper Functions
+# These typed functions can be used by godot-iap wrapper
+# ============================================================================
+
+# Query API helpers
+
+## Retrieve products or subscriptions from the store
+static func fetch_products_args(params: ProductRequest) -> Dictionary:
+	var args = {}
+	if params != null:
+		if params.has_method("to_dict"):
+			args["params"] = params.to_dict()
+		else:
+			args["params"] = params
+	return args
+
+## Get all available purchases for the current user
+static func get_available_purchases_args(options: PurchaseOptions) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+## Get active subscriptions (filters by subscriptionIds when provided)
+static func get_active_subscriptions_args(subscription_ids: Array[String]) -> Dictionary:
+	var args = {}
+	args["subscriptionIds"] = subscription_ids
+	return args
+
+## Check whether the user has active subscriptions
+static func has_active_subscriptions_args(subscription_ids: Array[String]) -> Dictionary:
+	var args = {}
+	args["subscriptionIds"] = subscription_ids
+	return args
+
+## Get the current storefront country code
+static func get_storefront_args() -> Dictionary:
+	return {}
+
+## Get the current App Store storefront country code
+static func get_storefront_ios_args() -> Dictionary:
+	return {}
+
+## Get the currently promoted product (iOS 11+)
+static func get_promoted_product_ios_args() -> Dictionary:
+	return {}
+
+## Check if external purchase notice sheet can be presented (iOS 18.2+)
+static func can_present_external_purchase_notice_ios_args() -> Dictionary:
+	return {}
+
+## Retrieve all pending transactions in the StoreKit queue
+static func get_pending_transactions_ios_args() -> Dictionary:
+	return {}
+
+## Check introductory offer eligibility for a subscription group
+static func is_eligible_for_intro_offer_ios_args(group_id: String) -> Dictionary:
+	var args = {}
+	args["groupID"] = group_id
+	return args
+
+## Get StoreKit 2 subscription status details (iOS 15+)
+static func subscription_status_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Get current StoreKit 2 entitlements (iOS 15+)
+static func current_entitlement_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Get the latest transaction for a product using StoreKit 2
+static func latest_transaction_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Verify a StoreKit 2 transaction signature
+static func is_transaction_verified_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Get the transaction JWS (StoreKit 2)
+static func get_transaction_jws_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Get base64-encoded receipt data for validation
+static func get_receipt_data_ios_args() -> Dictionary:
+	return {}
+
+## Fetch the current app transaction (iOS 16+)
+static func get_app_transaction_ios_args() -> Dictionary:
+	return {}
+
+## Validate a receipt for a specific product
+static func validate_receipt_ios_args(options: VerifyPurchaseProps) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+# Mutation API helpers
+
+## Establish the platform billing connection
+static func init_connection_args(config: InitConnectionConfig) -> Dictionary:
+	var args = {}
+	if config != null:
+		if config.has_method("to_dict"):
+			args["config"] = config.to_dict()
+		else:
+			args["config"] = config
+	return args
+
+## Close the platform billing connection
+static func end_connection_args() -> Dictionary:
+	return {}
+
+## Initiate a purchase flow; rely on events for final state
+static func request_purchase_args(params: RequestPurchaseProps) -> Dictionary:
+	var args = {}
+	if params != null:
+		if params.has_method("to_dict"):
+			args["params"] = params.to_dict()
+		else:
+			args["params"] = params
+	return args
+
+## Finish a transaction after validating receipts
+static func finish_transaction_args(purchase: PurchaseInput, is_consumable: bool) -> Dictionary:
+	var args = {}
+	if purchase != null:
+		if purchase.has_method("to_dict"):
+			args["purchase"] = purchase.to_dict()
+		else:
+			args["purchase"] = purchase
+	args["isConsumable"] = is_consumable
+	return args
+
+## Restore completed purchases across platforms
+static func restore_purchases_args() -> Dictionary:
+	return {}
+
+## Open the native subscription management surface
+static func deep_link_to_subscriptions_args(options: DeepLinkOptions) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+## Validate purchase receipts with the configured providers
+static func validate_receipt_args(options: VerifyPurchaseProps) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+## Verify purchases with the configured providers
+static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+## Verify purchases with a specific provider (e.g., IAPKit)
+static func verify_purchase_with_provider_args(options: VerifyPurchaseWithProviderProps) -> Dictionary:
+	var args = {}
+	if options != null:
+		if options.has_method("to_dict"):
+			args["options"] = options.to_dict()
+		else:
+			args["options"] = options
+	return args
+
+## Clear pending transactions from the StoreKit payment queue
+static func clear_transaction_ios_args() -> Dictionary:
+	return {}
+
+## Purchase the promoted product surfaced by the App Store.
+static func request_purchase_on_promoted_product_ios_args() -> Dictionary:
+	return {}
+
+## Open subscription management UI and return changed purchases (iOS 15+)
+static func show_manage_subscriptions_ios_args() -> Dictionary:
+	return {}
+
+## Initiate a refund request for a product (iOS 15+)
+static func begin_refund_request_ios_args(sku: String) -> Dictionary:
+	var args = {}
+	args["sku"] = sku
+	return args
+
+## Force a StoreKit sync for transactions (iOS 15+)
+static func sync_ios_args() -> Dictionary:
+	return {}
+
+## Present the App Store code redemption sheet
+static func present_code_redemption_sheet_ios_args() -> Dictionary:
+	return {}
+
+## Present external purchase notice sheet (iOS 18.2+)
+static func present_external_purchase_notice_sheet_ios_args() -> Dictionary:
+	return {}
+
+## Present external purchase custom link with StoreKit UI (iOS 18.2+)
+static func present_external_purchase_link_ios_args(url: String) -> Dictionary:
+	var args = {}
+	args["url"] = url
+	return args
+
+## Acknowledge a non-consumable purchase or subscription
+static func acknowledge_purchase_android_args(purchase_token: String) -> Dictionary:
+	var args = {}
+	args["purchaseToken"] = purchase_token
+	return args
+
+## Consume a purchase token so it can be repurchased
+static func consume_purchase_android_args(purchase_token: String) -> Dictionary:
+	var args = {}
+	args["purchaseToken"] = purchase_token
+	return args
+
+## Check if alternative billing is available for this user/device
+static func check_alternative_billing_availability_android_args() -> Dictionary:
+	return {}
+
+## Show alternative billing information dialog to user
+static func show_alternative_billing_dialog_android_args() -> Dictionary:
+	return {}
+
+## Create external transaction token for Google Play reporting
+static func create_alternative_billing_token_android_args() -> Dictionary:
+	return {}
+
+## Check if a billing program is available for the current user
+static func is_billing_program_available_android_args(program: BillingProgramAndroid) -> Dictionary:
+	var args = {}
+	args["program"] = program
+	return args
+
+## Create reporting details for a billing program
+static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid) -> Dictionary:
+	var args = {}
+	args["program"] = program
+	return args
+
+## Launch external link flow for external billing programs
+static func launch_external_link_android_args(params: LaunchExternalLinkParamsAndroid) -> Dictionary:
+	var args = {}
+	if params != null:
+		if params.has_method("to_dict"):
+			args["params"] = params.to_dict()
+		else:
+			args["params"] = params
+	return args

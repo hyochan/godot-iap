@@ -8,7 +8,14 @@ import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 <IapKitBanner />
 
-Methods available only on iOS platform using StoreKit 2.
+Methods available only on iOS platform using StoreKit 2. All methods use typed parameters and return typed objects.
+
+## Setup
+
+```gdscript
+# Load OpenIAP types
+const Types = preload("res://addons/godot-iap/types.gd")
+```
 
 ## Transaction Management
 
@@ -17,15 +24,17 @@ Methods available only on iOS platform using StoreKit 2.
 Synchronize transactions with the App Store. Call this to ensure all transactions are up to date.
 
 ```gdscript
-func sync_ios() -> String
+func sync_ios() -> Types.VoidResult
 ```
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `Types.VoidResult`
 
 **Example:**
 ```gdscript
 func refresh_purchases():
-    iap.sync_ios()
+    var result = GodotIapPlugin.sync_ios()
+    if result.success:
+        print("Sync completed")
 ```
 
 ---
@@ -35,10 +44,10 @@ func refresh_purchases():
 Clear finished transactions from the queue.
 
 ```gdscript
-func clear_transaction_ios() -> String
+func clear_transaction_ios() -> Types.VoidResult
 ```
 
-**Returns:** JSON string with status
+**Returns:** `Types.VoidResult`
 
 ---
 
@@ -47,19 +56,18 @@ func clear_transaction_ios() -> String
 Get all pending transactions that haven't been finished.
 
 ```gdscript
-func get_pending_transactions_ios() -> String
+func get_pending_transactions_ios() -> Array
 ```
 
-**Returns:** JSON string with pending transactions
+**Returns:** `Array` of `Types.TransactionIOS`
 
 **Example:**
 ```gdscript
 func check_pending():
-    var result = JSON.parse_string(iap.get_pending_transactions_ios())
-    if result.get("success", false):
-        var transactions = JSON.parse_string(result.get("transactionsJson", "[]"))
-        for tx in transactions:
-            print("Pending: ", tx.productId)
+    var transactions = GodotIapPlugin.get_pending_transactions_ios()
+    for tx in transactions:
+        # Access typed properties
+        print("Pending: %s" % tx.product_id)
 ```
 
 ---
@@ -71,15 +79,15 @@ func check_pending():
 Present the App Store offer code redemption sheet.
 
 ```gdscript
-func present_code_redemption_sheet_ios() -> String
+func present_code_redemption_sheet_ios() -> Types.VoidResult
 ```
 
-**Returns:** JSON string with status
+**Returns:** `Types.VoidResult`
 
 **Example:**
 ```gdscript
 func _on_redeem_code_pressed():
-    iap.present_code_redemption_sheet_ios()
+    GodotIapPlugin.present_code_redemption_sheet_ios()
 ```
 
 :::info Note
@@ -93,15 +101,15 @@ Available on iOS 14.0+. Results come through the `purchase_updated` signal.
 Open the subscription management page in Settings.
 
 ```gdscript
-func show_manage_subscriptions_ios() -> String
+func show_manage_subscriptions_ios() -> Types.VoidResult
 ```
 
-**Returns:** JSON string with status
+**Returns:** `Types.VoidResult`
 
 **Example:**
 ```gdscript
 func _on_manage_subscriptions_pressed():
-    iap.show_manage_subscriptions_ios()
+    GodotIapPlugin.show_manage_subscriptions_ios()
 ```
 
 ---
@@ -111,7 +119,7 @@ func _on_manage_subscriptions_pressed():
 Get the subscription status for a product.
 
 ```gdscript
-func subscription_status_ios(sku: String) -> String
+func subscription_status_ios(sku: String) -> Array
 ```
 
 **Parameters:**
@@ -119,20 +127,16 @@ func subscription_status_ios(sku: String) -> String
 |-----------|------|-------------|
 | `sku` | `String` | Subscription product ID |
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `Array` of `Types.SubscriptionStatusIOS`
 
 **Example:**
 ```gdscript
 func check_subscription_status(subscription_id: String):
-    iap.subscription_status_ios(subscription_id)
-
-func _on_products_fetched(result: Dictionary):
-    if result.get("success", false):
-        var statuses = JSON.parse_string(result.get("statusesJson", "[]"))
-        for status in statuses:
-            print("State: ", status.state)
-            if status.renewalInfo:
-                print("Will renew: ", status.renewalInfo.willAutoRenew)
+    var statuses = GodotIapPlugin.subscription_status_ios(subscription_id)
+    for status in statuses:
+        print("State: ", status.state)
+        if status.renewal_info:
+            print("Will renew: ", status.renewal_info.will_auto_renew)
 ```
 
 ---
@@ -142,7 +146,7 @@ func _on_products_fetched(result: Dictionary):
 Check if user is eligible for an introductory offer.
 
 ```gdscript
-func is_eligible_for_intro_offer_ios(group_id: String) -> String
+func is_eligible_for_intro_offer_ios(group_id: String) -> bool
 ```
 
 **Parameters:**
@@ -150,18 +154,13 @@ func is_eligible_for_intro_offer_ios(group_id: String) -> String
 |-----------|------|-------------|
 | `group_id` | `String` | Subscription group ID |
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `bool`
 
 **Example:**
 ```gdscript
 func check_intro_eligibility(group_id: String):
-    iap.is_eligible_for_intro_offer_ios(group_id)
-
-func _on_products_fetched(result: Dictionary):
-    if result.get("success", false):
-        var is_eligible = result.get("isEligible", false)
-        if is_eligible:
-            show_intro_offer_ui()
+    if GodotIapPlugin.is_eligible_for_intro_offer_ios(group_id):
+        show_intro_offer_ui()
 ```
 
 ---
@@ -173,7 +172,7 @@ func _on_products_fetched(result: Dictionary):
 Begin a refund request for a transaction.
 
 ```gdscript
-func begin_refund_request_ios(transaction_id: String) -> String
+func begin_refund_request_ios(transaction_id: String) -> Types.RefundRequestResultIOS
 ```
 
 **Parameters:**
@@ -181,17 +180,13 @@ func begin_refund_request_ios(transaction_id: String) -> String
 |-----------|------|-------------|
 | `transaction_id` | `String` | Transaction ID to refund |
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `Types.RefundRequestResultIOS`
 
 **Example:**
 ```gdscript
 func request_refund(transaction_id: String):
-    iap.begin_refund_request_ios(transaction_id)
-
-func _on_products_fetched(result: Dictionary):
-    if result.get("success", false):
-        var refund_status = result.get("refundStatus", "")
-        print("Refund status: ", refund_status)
+    var result = GodotIapPlugin.begin_refund_request_ios(transaction_id)
+    print("Refund status: ", result.status)
 ```
 
 ---
@@ -201,7 +196,7 @@ func _on_products_fetched(result: Dictionary):
 Get the current entitlement for a product.
 
 ```gdscript
-func current_entitlement_ios(sku: String) -> String
+func current_entitlement_ios(sku: String) -> Variant
 ```
 
 **Parameters:**
@@ -209,7 +204,7 @@ func current_entitlement_ios(sku: String) -> String
 |-----------|------|-------------|
 | `sku` | `String` | Product ID |
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `Variant` - `Types.TransactionIOS` or `null`
 
 ---
 
@@ -218,7 +213,7 @@ func current_entitlement_ios(sku: String) -> String
 Get the latest transaction for a product.
 
 ```gdscript
-func latest_transaction_ios(sku: String) -> String
+func latest_transaction_ios(sku: String) -> Variant
 ```
 
 **Parameters:**
@@ -226,7 +221,7 @@ func latest_transaction_ios(sku: String) -> String
 |-----------|------|-------------|
 | `sku` | `String` | Product ID |
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `Variant` - `Types.TransactionIOS` or `null`
 
 ---
 
@@ -237,25 +232,17 @@ func latest_transaction_ios(sku: String) -> String
 Get the user's storefront information (country/region).
 
 ```gdscript
-func get_storefront_ios() -> String
+func get_storefront_ios() -> Variant
 ```
 
-**Returns:** JSON string with storefront info
-
-```json
-{
-  "success": true,
-  "countryCode": "US",
-  "id": "143441"
-}
-```
+**Returns:** `Variant` - `Types.StorefrontIOS` or `null`
 
 **Example:**
 ```gdscript
-func get_user_country():
-    var result = JSON.parse_string(iap.get_storefront_ios())
-    if result.get("success", false):
-        return result.get("countryCode", "")
+func get_user_country() -> String:
+    var storefront = GodotIapPlugin.get_storefront_ios()
+    if storefront:
+        return storefront.country_code
     return ""
 ```
 
@@ -268,21 +255,18 @@ func get_user_country():
 Get the app transaction (proof of purchase from App Store).
 
 ```gdscript
-func get_app_transaction_ios() -> String
+func get_app_transaction_ios() -> Variant
 ```
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `Variant` - `Types.AppTransactionIOS` or `null`
 
 **Example:**
 ```gdscript
 func verify_app_purchase():
-    iap.get_app_transaction_ios()
-
-func _on_products_fetched(result: Dictionary):
-    if result.get("success", false):
-        var jws = result.get("appTransactionJWS", "")
+    var app_tx = GodotIapPlugin.get_app_transaction_ios()
+    if app_tx:
         # Send to server for verification
-        await verify_on_server(jws)
+        await verify_on_server(app_tx.jws)
 ```
 
 ---
@@ -294,10 +278,10 @@ func _on_products_fetched(result: Dictionary):
 Get the currently promoted product (from App Store promotional purchase).
 
 ```gdscript
-func get_promoted_product_ios() -> String
+func get_promoted_product_ios() -> Variant
 ```
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `Variant` - `Types.ProductIOS` or `null`
 
 ---
 
@@ -306,10 +290,10 @@ func get_promoted_product_ios() -> String
 Complete a purchase for a promoted product.
 
 ```gdscript
-func request_purchase_on_promoted_product_ios() -> String
+func request_purchase_on_promoted_product_ios() -> Variant
 ```
 
-**Returns:** JSON string with status
+**Returns:** `Variant` - `Types.PurchaseIOS` or `null`
 
 :::warning Deprecated
 This method is deprecated. Use `promoted_product_ios` signal with `request_purchase` instead.
@@ -318,16 +302,17 @@ This method is deprecated. Use `promoted_product_ios` signal with `request_purch
 **Example:**
 ```gdscript
 func _setup_signals():
-    iap.promoted_product_ios.connect(_on_promoted_product)
+    GodotIapPlugin.promoted_product_ios.connect(_on_promoted_product)
 
 func _on_promoted_product(product_id: String):
     # User tapped a promoted product in App Store
-    # You can show a confirmation dialog or proceed with purchase
-    var params = {
-        "sku": product_id,
-        "ios": { "quantity": 1 }
-    }
-    iap.request_purchase(JSON.stringify(params))
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.request.apple = Types.RequestPurchaseIosProps.new()
+    props.request.apple.sku = product_id
+    props.type = Types.ProductQueryType.IN_APP
+
+    GodotIapPlugin.request_purchase(props)
 ```
 
 ---
@@ -342,17 +327,12 @@ Get the App Store receipt data.
 func get_receipt_data_ios() -> String
 ```
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `String` - Base64-encoded receipt data
 
 **Example:**
 ```gdscript
-func get_receipt():
-    iap.get_receipt_data_ios()
-
-func _on_products_fetched(result: Dictionary):
-    if result.get("success", false):
-        var receipt_data = result.get("receiptData", "")
-        # Send to server for verification
+func get_receipt() -> String:
+    return GodotIapPlugin.get_receipt_data_ios()
 ```
 
 ---
@@ -362,7 +342,7 @@ func _on_products_fetched(result: Dictionary):
 Check if a transaction is verified.
 
 ```gdscript
-func is_transaction_verified_ios(transaction_id: String) -> String
+func is_transaction_verified_ios(transaction_id: String) -> bool
 ```
 
 **Parameters:**
@@ -370,7 +350,7 @@ func is_transaction_verified_ios(transaction_id: String) -> String
 |-----------|------|-------------|
 | `transaction_id` | `String` | Transaction ID |
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `bool`
 
 ---
 
@@ -387,7 +367,7 @@ func get_transaction_jws_ios(transaction_id: String) -> String
 |-----------|------|-------------|
 | `transaction_id` | `String` | Transaction ID |
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `String` - JWS token
 
 ---
 
@@ -400,10 +380,10 @@ These methods support external purchase flows for apps in eligible regions.
 Check if external purchase notice can be presented.
 
 ```gdscript
-func can_present_external_purchase_notice_ios() -> String
+func can_present_external_purchase_notice_ios() -> bool
 ```
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `bool`
 
 ---
 
@@ -412,10 +392,10 @@ func can_present_external_purchase_notice_ios() -> String
 Present the external purchase notice sheet to the user.
 
 ```gdscript
-func present_external_purchase_notice_sheet_ios() -> String
+func present_external_purchase_notice_sheet_ios() -> Types.VoidResult
 ```
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `Types.VoidResult`
 
 ---
 
@@ -424,7 +404,7 @@ func present_external_purchase_notice_sheet_ios() -> String
 Present an external purchase link.
 
 ```gdscript
-func present_external_purchase_link_ios(url: String) -> String
+func present_external_purchase_link_ios(url: String) -> Types.VoidResult
 ```
 
 **Parameters:**
@@ -432,22 +412,19 @@ func present_external_purchase_link_ios(url: String) -> String
 |-----------|------|-------------|
 | `url` | `String` | External purchase URL |
 
-**Returns:** JSON string with status (result via signal)
+**Returns:** `Types.VoidResult`
 
 **Example:**
 ```gdscript
 func open_external_purchase():
     # First check if we can present the notice
-    iap.can_present_external_purchase_notice_ios()
-
-func _on_products_fetched(result: Dictionary):
-    if result.get("canPresent", false):
+    if GodotIapPlugin.can_present_external_purchase_notice_ios():
         # Present the notice first
-        iap.present_external_purchase_notice_sheet_ios()
+        GodotIapPlugin.present_external_purchase_notice_sheet_ios()
 
 func _on_notice_accepted():
     # After user accepts, open external link
-    iap.present_external_purchase_link_ios("https://your-store.com/purchase")
+    GodotIapPlugin.present_external_purchase_link_ios("https://your-store.com/purchase")
 ```
 
 :::info Regional Availability

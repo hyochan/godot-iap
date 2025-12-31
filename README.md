@@ -42,42 +42,51 @@ See the [Installation Guide](https://hyochan.github.io/godot-iap/getting-started
 ```gdscript
 extends Node
 
-var iap: GodotIap
+# Load OpenIAP types for type-safe API
+const Types = preload("res://addons/godot-iap/types.gd")
 
 func _ready():
-    if Engine.has_singleton("GodotIap"):
-        iap = Engine.get_singleton("GodotIap")
-        _setup_signals()
-        _initialize()
+    # Connect signals
+    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
+    GodotIapPlugin.purchase_error.connect(_on_purchase_error)
 
-func _setup_signals():
-    iap.purchase_updated.connect(_on_purchase_updated)
-    iap.purchase_error.connect(_on_purchase_error)
-    iap.products_fetched.connect(_on_products_fetched)
+    # Initialize connection
+    if GodotIapPlugin.init_connection():
+        _fetch_products()
 
-func _initialize():
-    var result = JSON.parse_string(iap.init_connection())
-    if result.get("success", false):
-        var product_ids = ["coins_100", "premium"]
-        iap.fetch_products(JSON.stringify(product_ids), "inapp")
+func _fetch_products():
+    # Create typed ProductRequest
+    var request = Types.ProductRequest.new()
+    request.skus = ["coins_100", "premium"]
+    request.type = Types.ProductQueryType.ALL
 
-func _on_products_fetched(products_dict):
-    if products_dict.get("success", false):
-        var products = JSON.parse_string(products_dict.get("productsJson", "[]"))
-        for product in products:
-            print("Product: ", product.productId, " - ", product.localizedPrice)
+    # Returns Array of typed products (Types.ProductAndroid or Types.ProductIOS)
+    var products = GodotIapPlugin.fetch_products(request)
+    for product in products:
+        # Access typed properties directly
+        print("Product: ", product.id, " - ", product.display_price)
 
 func _on_purchase_updated(purchase: Dictionary):
-    if purchase.purchaseState == "purchased":
-        # Verify on your server, then finish
-        iap.finish_transaction(JSON.stringify(purchase), true)
+    if purchase.get("purchaseState") == "Purchased":
+        # Finish transaction with typed PurchaseInput
+        var purchase_input = Types.PurchaseInput.from_dict(purchase)
+        GodotIapPlugin.finish_transaction(purchase_input, true)  # true = consumable
 
 func _on_purchase_error(error: Dictionary):
-    print("Error: ", error.code, " - ", error.message)
+    print("Error: ", error.get("code"), " - ", error.get("message"))
 
 func buy(product_id: String):
-    var params = {"sku": product_id, "type": "inapp"}
-    iap.request_purchase(JSON.stringify(params))
+    # Create typed RequestPurchaseProps
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [product_id]
+    props.request.apple = Types.RequestPurchaseIosProps.new()
+    props.request.apple.sku = product_id
+    props.type = Types.ProductQueryType.IN_APP
+
+    # Returns typed purchase object or null
+    var purchase = GodotIapPlugin.request_purchase(props)
 ```
 
 ## License

@@ -8,6 +8,9 @@ extends Node
 ## - "dev.hyo.martie.premium" : Non-consumable - 프리미엄 (무제한 전구)
 ## - "dev.hyo.martie.premium_year" : Subscription - 연간 프리미엄 구독
 
+# Load OpenIAP types
+const Types = preload("res://addons/godot-iap/types.gd")
+
 signal purchase_completed(product_id: String)
 signal purchase_failed(product_id: String, error: String)
 signal purchases_restored
@@ -22,7 +25,7 @@ const PRODUCT_PREMIUM := "dev.hyo.martie.premium"
 const PRODUCT_PREMIUM_YEAR := "dev.hyo.martie.premium_year"
 
 var store_connected := false
-var products: Dictionary = {}
+var products: Dictionary = {}  # product_id -> Types.ProductAndroid or Types.ProductIOS
 var is_loading := false
 
 
@@ -62,21 +65,19 @@ func _fetch_products_delayed() -> void:
 
 
 func _fetch_products() -> void:
-	var result = GodotIapPlugin.fetch_products({
-		"skus": [PRODUCT_10_BULBS, PRODUCT_30_BULBS, PRODUCT_CERTIFIED, PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR],
-		"type": "all"
-	})
+	# Create typed ProductRequest
+	var request = Types.ProductRequest.new()
+	var sku_list: Array[String] = [PRODUCT_10_BULBS, PRODUCT_30_BULBS, PRODUCT_CERTIFIED, PRODUCT_PREMIUM, PRODUCT_PREMIUM_YEAR]
+	request.skus = sku_list
+	request.type = Types.ProductQueryType.ALL
 
-	# Handle synchronous response (Android) or check for pending (iOS async)
-	if result.get("status") == "pending":
-		# iOS: products will arrive via products_fetched signal
-		print("[IAPManager] Waiting for products (async)...")
-		return
+	# fetch_products now returns Array of typed products
+	var fetched_products = GodotIapPlugin.fetch_products(request)
 
 	_set_loading(false)
 
-	if result.has("products"):
-		_process_products(result["products"])
+	if fetched_products.size() > 0:
+		_process_products(fetched_products)
 
 
 func _on_products_fetched(result: Dictionary) -> void:
@@ -85,16 +86,24 @@ func _on_products_fetched(result: Dictionary) -> void:
 	_set_loading(false)
 
 	if result.has("products"):
-		_process_products(result["products"])
+		# Convert raw dictionaries to typed objects
+		for product_dict in result["products"]:
+			if product_dict is Dictionary:
+				# Note: In async callback, we need to convert manually
+				# In production, you might want to detect platform here
+				products[product_dict.get("id", "")] = product_dict
+		products_loaded.emit()
 	elif result.has("error"):
 		push_error("[IAPManager] Failed to fetch products: %s" % result.get("error", "Unknown"))
 
 
 func _process_products(products_array: Array) -> void:
+	# products_array contains typed objects (Types.ProductAndroid or Types.ProductIOS)
 	for product in products_array:
-		var id = product.get("id", product.get("productId", ""))
+		# Access typed properties directly
+		var id = product.id
 		products[id] = product
-		print("[IAPManager] Product loaded: %s - %s" % [id, product.get("displayPrice", product.get("localizedPrice", ""))])
+		print("[IAPManager] Product loaded: %s - %s" % [id, product.display_price])
 	products_loaded.emit()
 
 
@@ -107,10 +116,11 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 	if purchase_state == "Purchased" or purchase_state == "purchased":
 		# Finish transaction (consumables: 10bulbs, 30bulbs)
 		var consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
-		GodotIapPlugin.finish_transaction({
-			"purchase": purchase,
-			"isConsumable": consumable
-		})
+
+		# Create typed PurchaseInput
+		var purchase_input = Types.PurchaseInput.from_dict(purchase)
+		GodotIapPlugin.finish_transaction(purchase_input, consumable)
+
 		purchase_completed.emit(product_id)
 
 
@@ -153,28 +163,39 @@ func _purchase(product_id: String) -> void:
 
 	print("[IAPManager] Requesting purchase: %s" % product_id)
 
-	var _result = GodotIapPlugin.request_purchase({
-		"request": {
-			"google": { "skus": [product_id] },
-			"apple": { "sku": product_id }
-		},
-		"type": "in-app"
-	})
+	# Create typed RequestPurchaseProps
+	var props = Types.RequestPurchaseProps.new()
+	props.request = Types.RequestPurchasePropsByPlatforms.new()
+
+	# Set Google (Android) props
+	props.request.google = Types.RequestPurchaseAndroidProps.new()
+	var google_skus: Array[String] = [product_id]
+	props.request.google.skus = google_skus
+
+	# Set Apple (iOS) props
+	props.request.apple = Types.RequestPurchaseIosProps.new()
+	props.request.apple.sku = product_id
+
+	props.type = Types.ProductQueryType.IN_APP
+
+	var _result = GodotIapPlugin.request_purchase(props)
 
 
 func restore_purchases() -> void:
 	## Restore previous purchases
 	print("[IAPManager] Restoring purchases...")
-	var result = GodotIapPlugin.restore_purchases()
+	var result: Types.VoidResult = GodotIapPlugin.restore_purchases()
 
-	if result.get("success", false):
+	if result.success:
 		purchases_restored.emit()
 
 
 func is_premium_purchased() -> bool:
 	## Check if premium was purchased (for non-consumables)
+	## Returns typed purchase objects (Types.PurchaseAndroid or Types.PurchaseIOS)
 	var purchases = GodotIapPlugin.get_available_purchases()
 	for purchase in purchases:
-		if purchase.get("productId", "") == PRODUCT_PREMIUM:
+		# Access typed property directly
+		if purchase.product_id == PRODUCT_PREMIUM:
 			return true
 	return false

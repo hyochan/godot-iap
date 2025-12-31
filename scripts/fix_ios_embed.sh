@@ -1,0 +1,141 @@
+#!/bin/bash
+# Fix iOS Xcode project to embed GodotIap frameworks
+# Run this after Godot iOS export
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PBXPROJ="$PROJECT_ROOT/Example/ios/Martie.xcodeproj/project.pbxproj"
+
+if [ ! -f "$PBXPROJ" ]; then
+    echo "Error: project.pbxproj not found at $PBXPROJ"
+    exit 1
+fi
+
+echo "Fixing iOS project to embed frameworks..."
+
+# Backup original
+cp "$PBXPROJ" "$PBXPROJ.backup"
+
+# Create a temporary file for modifications
+TEMP_FILE=$(mktemp)
+
+# Read the file and make modifications
+python3 << EOF
+import re
+
+with open("$PBXPROJ", "r") as f:
+    content = f.read()
+
+# Check if GodotIap framework references exist
+if "GodotIap.framework" not in content:
+    print("Warning: GodotIap.framework not found in project")
+    exit(0)
+
+# Find the framework file reference IDs
+godotiap_ref_match = re.search(r'(\w+)\s*/\*\s*GodotIap\.framework\s*\*/\s*=\s*\{isa\s*=\s*PBXFileReference', content)
+swiftgodot_ref_match = re.search(r'(\w+)\s*/\*\s*SwiftGodotRuntime\.framework\s*\*/\s*=\s*\{isa\s*=\s*PBXFileReference', content)
+
+# Also try alternate pattern (without comment)
+if not godotiap_ref_match:
+    godotiap_ref_match = re.search(r'(\w+)\s*=\s*\{isa\s*=\s*PBXFileReference[^}]*GodotIap\.framework', content)
+if not swiftgodot_ref_match:
+    swiftgodot_ref_match = re.search(r'(\w+)\s*=\s*\{isa\s*=\s*PBXFileReference[^}]*SwiftGodotRuntime\.framework', content)
+
+# Try to find by path pattern
+if not godotiap_ref_match:
+    godotiap_ref_match = re.search(r'(\w+)\s*=\s*\{isa\s*=\s*PBXFileReference;[^}]*path\s*=\s*"[^"]*GodotIap\.framework[^"]*"', content)
+if not swiftgodot_ref_match:
+    swiftgodot_ref_match = re.search(r'(\w+)\s*=\s*\{isa\s*=\s*PBXFileReference;[^}]*path\s*=\s*"[^"]*SwiftGodotRuntime\.framework[^"]*"', content)
+
+# Find by the specific pattern Godot uses
+godotiap_ref = None
+swiftgodot_ref = None
+
+for match in re.finditer(r'(\w+)\s*=\s*\{isa\s*=\s*PBXFileReference;[^}]+\}', content):
+    block = match.group(0)
+    ref_id = match.group(1)
+    if 'GodotIap.framework/GodotIap' in block or 'GodotIap.framework"' in block:
+        godotiap_ref = ref_id
+    if 'SwiftGodotRuntime.framework/SwiftGodotRuntime' in block or 'SwiftGodotRuntime.framework"' in block:
+        swiftgodot_ref = ref_id
+
+print(f"GodotIap ref: {godotiap_ref}")
+print(f"SwiftGodotRuntime ref: {swiftgodot_ref}")
+
+if not godotiap_ref or not swiftgodot_ref:
+    print("Could not find framework references")
+    # Print first few PBXFileReference entries for debugging
+    refs = re.findall(r'(\w+)\s*=\s*\{isa\s*=\s*PBXFileReference;[^}]+\}', content)[:10]
+    for r in refs:
+        print(f"Found ref: {r[:200]}...")
+    exit(1)
+
+# Generate new IDs for embed build files
+embed_godotiap_id = godotiap_ref[:-1] + "E1"
+embed_swiftgodot_id = swiftgodot_ref[:-1] + "E2"
+
+# Add embed build file entries after PBXBuildFile section start
+embed_entries = f'''		{embed_godotiap_id} /* GodotIap.framework in Embed Frameworks */ = {{isa = PBXBuildFile; fileRef = {godotiap_ref}; settings = {{ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }}; }};
+		{embed_swiftgodot_id} /* SwiftGodotRuntime.framework in Embed Frameworks */ = {{isa = PBXBuildFile; fileRef = {swiftgodot_ref}; settings = {{ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }}; }};
+'''
+
+# Check if embed entries already exist
+if embed_godotiap_id in content:
+    print("Embed entries already exist")
+else:
+    # Add after "/* Begin PBXBuildFile section */"
+    content = content.replace(
+        "/* Begin PBXBuildFile section */\n",
+        "/* Begin PBXBuildFile section */\n" + embed_entries
+    )
+
+# Update Embed Frameworks files list
+embed_files = f'''				files = (
+					{embed_godotiap_id} /* GodotIap.framework in Embed Frameworks */,
+					{embed_swiftgodot_id} /* SwiftGodotRuntime.framework in Embed Frameworks */,
+				);'''
+
+# Replace empty Embed Frameworks files
+content = re.sub(
+    r'(90A13CD024AA68E500E8464F\s*/\*\s*Embed Frameworks\s*\*/\s*=\s*\{[^}]*files\s*=\s*\([^)]*\);)',
+    lambda m: re.sub(r'files\s*=\s*\([^)]*\);', f'''files = (
+					{embed_godotiap_id} /* GodotIap.framework in Embed Frameworks */,
+					{embed_swiftgodot_id} /* SwiftGodotRuntime.framework in Embed Frameworks */,
+				);''', m.group(0)),
+    content
+)
+
+# Fix framework references to point to .framework folder, not binary inside
+content = re.sub(
+    r'(path\s*=\s*"[^"]*GodotIap\.framework)/GodotIap"',
+    r'\1"',
+    content
+)
+content = re.sub(
+    r'(path\s*=\s*"[^"]*SwiftGodotRuntime\.framework)/SwiftGodotRuntime"',
+    r'\1"',
+    content
+)
+
+# Change lastKnownFileType from file to wrapper.framework
+content = re.sub(
+    r'(lastKnownFileType\s*=\s*)file(\s*;[^}]*GodotIap)',
+    r'\1wrapper.framework\2',
+    content
+)
+content = re.sub(
+    r'(lastKnownFileType\s*=\s*)file(\s*;[^}]*SwiftGodotRuntime)',
+    r'\1wrapper.framework\2',
+    content
+)
+
+with open("$PBXPROJ", "w") as f:
+    f.write(content)
+
+print("Done!")
+EOF
+
+echo "Framework embedding fixed!"
+echo "Now open Xcode and build the project."

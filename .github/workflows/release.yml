@@ -1,0 +1,185 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Choose version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+        default: patch
+      custom_version:
+        description: 'Custom version (only if "custom" selected above, e.g., 1.0.0-beta.1)'
+        required: false
+        type: string
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout SwiftGodot
+        uses: actions/checkout@v4
+        with:
+          repository: migueldeicaza/SwiftGodot
+          path: SwiftGodot
+          ref: main
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.4'
+
+      - name: Configure Git
+        run: |
+          git config user.name "godot-iap bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Calculate version
+        id: version
+        run: |
+          # Get current version from plugin.cfg
+          CURRENT_VERSION=$(grep -E '^version=' Example/addons/godot-iap/plugin.cfg | cut -d'"' -f2)
+          echo "Current version: $CURRENT_VERSION"
+
+          if [ "${{ inputs.version }}" = "custom" ]; then
+            NEW_VERSION="${{ inputs.custom_version }}"
+          else
+            # Parse current version (handle both X.Y.Z and X.Y.Z-suffix formats)
+            BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-.*//')
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+
+            case "${{ inputs.version }}" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          fi
+
+          echo "New version: $NEW_VERSION"
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update version in plugin.cfg
+        run: |
+          sed -i '' 's/^version=.*/version="${{ steps.version.outputs.VERSION }}"/' Example/addons/godot-iap/plugin.cfg
+          cat Example/addons/godot-iap/plugin.cfg
+
+      - name: Download godot-lib.aar
+        run: |
+          mkdir -p android/libs
+          curl -L -o android/libs/godot-lib.aar \
+            "https://github.com/godotengine/godot/releases/download/4.3-stable/godot-lib.4.3.stable.template_release.aar"
+
+      - name: Build Android AAR
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Build iOS Frameworks
+        run: |
+          cd ios-gdextension
+          xcodebuild -scheme GodotIap \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            -derivedDataPath .build-xcode \
+            build
+
+      - name: Prepare addon directory
+        run: |
+          mkdir -p dist/addons/godot-iap/android
+          mkdir -p dist/addons/godot-iap/bin/ios
+
+          # Copy GDScript files
+          cp Example/addons/godot-iap/*.gd dist/addons/godot-iap/
+          cp Example/addons/godot-iap/plugin.cfg dist/addons/godot-iap/
+
+          # Copy Android AAR
+          cp android/build/outputs/aar/android-release.aar dist/addons/godot-iap/android/GodotIap.release.aar
+
+          # Create GDAP file for Android plugin
+          cat > dist/addons/godot-iap/android/GodotIap.gdap << 'EOF'
+          [config]
+          name="GodotIap"
+          binary_type="local"
+          binary="GodotIap.release.aar"
+
+          [dependencies]
+          local=[]
+          remote=["com.android.billingclient:billing:7.1.1", "io.github.hyochan.openiap:openiap-google:1.3.+"]
+          EOF
+
+          # Copy iOS frameworks
+          cp -R ios-gdextension/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/GodotIap.framework dist/addons/godot-iap/bin/ios/
+          cp -R ios-gdextension/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/ios/
+
+          # Create GDExtension config for iOS
+          cat > dist/addons/godot-iap/bin/ios/godot_iap.gdextension << 'EOF'
+          [configuration]
+          entry_symbol = "godot_iap_entry_point"
+          compatibility_minimum = "4.3"
+          supported_platforms = ["ios"]
+
+          [libraries]
+          ios.arm64 = "GodotIap.framework/GodotIap"
+
+          [dependencies]
+          ios.arm64 = {"SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
+          EOF
+
+      - name: Create release zip
+        run: |
+          cd dist
+          zip -r ../godot-iap-${{ steps.version.outputs.VERSION }}.zip addons
+
+      - name: Commit version bump and create tag
+        run: |
+          git add Example/addons/godot-iap/plugin.cfg
+          git commit -m "chore(release): ${{ steps.version.outputs.VERSION }}"
+          git tag ${{ steps.version.outputs.VERSION }}
+          git push --follow-tags
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: ${{ steps.version.outputs.VERSION }}
+          files: godot-iap-${{ steps.version.outputs.VERSION }}.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ inputs.prerelease }}

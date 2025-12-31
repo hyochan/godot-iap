@@ -148,7 +148,7 @@ jobs:
           cp Example/addons/godot-iap/plugin.cfg dist/addons/godot-iap/
 
           # Copy Android AAR
-          cp android/build/outputs/aar/android-release.aar dist/addons/godot-iap/android/GodotIap.release.aar
+          cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.release.aar
 
           # Create GDAP file for Android plugin with exact version from openiap-versions.json
           OPENIAP_GOOGLE_VERSION=$(cat openiap-versions.json | grep '"google"' | cut -d'"' -f4)

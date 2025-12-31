@@ -1,0 +1,10 @@
+[configuration]
+entry_symbol = "godot_iap_entry_point"
+compatibility_minimum = "4.3"
+supported_platforms = ["ios"]
+
+[libraries]
+ios.arm64 = "GodotIap.framework/GodotIap"
+
+[dependencies]
+ios.arm64 = {"SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}

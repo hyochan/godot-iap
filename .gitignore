@@ -12,6 +12,7 @@ Example/android/*
 
 # Build output
 bin/
+!Example/addons/godot-iap/bin/
 build/
 *.os
 *.obj
@@ -28,7 +29,7 @@ android/libs/
 *.aar
 
 # iOS - Old native plugin (deprecated, now using GDExtension)
-ios/
+/ios/
 
 # iOS GDExtension - Build artifacts
 ios-gdextension/.build/

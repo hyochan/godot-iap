@@ -110,35 +110,16 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease
 
-      # iOS build (slower, run after Android succeeds)
-      - name: Checkout SwiftGodot
-        uses: actions/checkout@v4
-        with:
-          repository: migueldeicaza/SwiftGodot
-          path: SwiftGodot
-          ref: v0.74.0
-
-      - name: Select Xcode 26 for Swift 6
+      # iOS frameworks are pre-built and committed to git for faster CI
+      - name: Verify iOS Frameworks
         run: |
-          # Use Xcode 26 which includes Swift 6
-          sudo xcode-select -s /Applications/Xcode_26.0.1.app/Contents/Developer
-          echo "Xcode version:"
-          xcodebuild -version
-          echo "Swift version:"
-          swift --version
-
-      - name: Build iOS Frameworks
-        run: |
-          cd ios-gdextension
-          # Limit parallelism to avoid memory issues with SwiftGodot compilation
-          xcodebuild -scheme GodotIap \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -configuration Release \
-            -derivedDataPath .build-xcode \
-            -jobs 2 \
-            build
-        timeout-minutes: 30
+          if [ ! -d "Example/addons/godot-iap/bin/ios/GodotIap.framework" ]; then
+            echo "Error: iOS frameworks not found in repository"
+            echo "Please run 'make ios' locally and commit the frameworks"
+            exit 1
+          fi
+          echo "✓ iOS frameworks found"
+          ls -la Example/addons/godot-iap/bin/ios/
 
       - name: Prepare addon directory
         run: |
@@ -165,9 +146,9 @@ jobs:
           remote=["com.android.billingclient:billing:7.1.1", "io.github.hyochan.openiap:openiap-google:${OPENIAP_GOOGLE_VERSION}"]
           EOF
 
-          # Copy iOS frameworks
-          cp -R ios-gdextension/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/GodotIap.framework dist/addons/godot-iap/bin/ios/
-          cp -R ios-gdextension/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/ios/
+          # Copy iOS frameworks (pre-built and committed to git)
+          cp -R Example/addons/godot-iap/bin/ios/GodotIap.framework dist/addons/godot-iap/bin/ios/
+          cp -R Example/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/ios/
 
           # Create GDExtension config for iOS
           cat > dist/addons/godot-iap/bin/ios/godot_iap.gdextension << 'EOF'

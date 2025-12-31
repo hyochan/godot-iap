@@ -72,6 +72,8 @@ setup:
 	else \
 		echo "$(GREEN)✓ godot-lib.aar already exists$(NC)"; \
 	fi
+	@echo "$(GREEN)Installing git hooks...$(NC)"
+	@$(PROJECT_ROOT)/scripts/install-hooks.sh
 	@echo "$(GREEN)Setup complete!$(NC)"
 
 # Build iOS plugin (automated with xcodebuild)

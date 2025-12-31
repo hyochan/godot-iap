@@ -6,7 +6,10 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-PBXPROJ="$PROJECT_ROOT/Example/ios/Martie.xcodeproj/project.pbxproj"
+
+# Use IOS_EXPORT_DIR if set, otherwise default to Example/ios
+IOS_EXPORT_DIR="${IOS_EXPORT_DIR:-$PROJECT_ROOT/Example/ios}"
+PBXPROJ="$IOS_EXPORT_DIR/Martie.xcodeproj/project.pbxproj"
 
 if [ ! -f "$PBXPROJ" ]; then
     echo "Error: project.pbxproj not found at $PBXPROJ"

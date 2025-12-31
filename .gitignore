@@ -63,9 +63,11 @@ Thumbs.db
 docs/.docusaurus/
 docs/node_modules/
 
-# Example - Built binaries (distributed via releases)
-Example/addons/godot-iap/bin/
+# Example - Android binaries (built locally, not committed)
 Example/addons/godot-iap/android/*.aar
+
+# iOS frameworks are committed to git for faster CI builds
+# Example/addons/godot-iap/bin/ios/ - TRACKED
 
 # TestProject - for testing release builds locally (not tracked in git)
 TestProject/

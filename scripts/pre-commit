@@ -1,0 +1,38 @@
+#!/bin/bash
+# Pre-commit hook: Auto-build iOS framework when ios-gdextension files are modified
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Check if any ios-gdextension files are staged for commit
+IOS_FILES_CHANGED=$(git diff --cached --name-only | grep -E '^ios-gdextension/')
+
+if [ -n "$IOS_FILES_CHANGED" ]; then
+    echo -e "${YELLOW}iOS GDExtension files modified:${NC}"
+    echo "$IOS_FILES_CHANGED"
+    echo ""
+    echo -e "${GREEN}Building iOS framework...${NC}"
+
+    # Run make ios
+    if make ios; then
+        echo -e "${GREEN}✓ iOS framework built successfully${NC}"
+
+        # Check if framework exists
+        if [ -d "Example/addons/godot-iap/bin/ios/GodotIap.framework" ]; then
+            echo -e "${GREEN}✓ Framework verified at Example/addons/godot-iap/bin/ios/${NC}"
+        else
+            echo -e "${RED}✗ Framework not found after build${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}✗ iOS framework build failed${NC}"
+        echo -e "${YELLOW}Please fix the build errors before committing.${NC}"
+        exit 1
+    fi
+    echo ""
+fi
+
+exit 0

@@ -1,6 +1,5 @@
 package dev.hyo.godotiap
 
-import android.util.Log
 import dev.hyo.openiap.*
 import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.store.OpenIapStore
@@ -25,27 +24,21 @@ import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalL
  */
 class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
-    companion object {
-        private const val TAG = "GodotIap"
-    }
-
     private lateinit var openIap: OpenIapModule
     private lateinit var store: OpenIapStore
     private var isInitialized = false
 
     // Listeners
     private val purchaseUpdateListener = OpenIapPurchaseUpdateListener { purchase ->
-        Log.d(TAG, "Purchase updated: ${purchase.productId}")
-        emitSignal("purchase_updated", purchaseToJson(purchase))
+        GodotIapLog.debug("Purchase updated: ${purchase.productId}")
+        val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
+        emitSignal("purchase_updated", JSONObject(sanitized).toString())
     }
 
     private val purchaseErrorListener = OpenIapPurchaseErrorListener { error ->
-        Log.e(TAG, "Purchase error: ${error.message}")
-        val errorJson = JSONObject().apply {
-            put("code", error.code)
-            put("message", error.message)
-        }
-        emitSignal("purchase_error", errorJson.toString())
+        GodotIapLog.failure("Purchase", Exception(error.message))
+        val errorPayload = error.toJSON()
+        emitSignal("purchase_error", JSONObject(errorPayload).toString())
     }
 
     override fun getPluginName(): String = "GodotIap"
@@ -68,10 +61,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun initConnection(): Boolean {
-        Log.d(TAG, "initConnection called")
+        GodotIapLog.debug("initConnection called")
 
         val activity = activity ?: run {
-            Log.e(TAG, "Activity is null")
+            GodotIapLog.failure("initConnection", Exception("Activity is null"))
             return false
         }
 
@@ -90,11 +83,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     emitSignal("connected")
                 }
 
-                Log.d(TAG, "initConnection result: $result")
+                GodotIapLog.result("initConnection", result)
                 result
             } catch (e: Exception) {
-                Log.e(TAG, "initConnection error: ${e.message}")
-                e.printStackTrace()
+                GodotIapLog.failure("initConnection", e)
                 false
             }
         }
@@ -102,7 +94,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun endConnection(): Boolean {
-        Log.d(TAG, "endConnection called")
+        GodotIapLog.debug("endConnection called")
 
         if (!isInitialized) return true
 
@@ -115,10 +107,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 isInitialized = false
                 emitSignal("disconnected")
 
-                Log.d(TAG, "endConnection result: $result")
+                GodotIapLog.result("endConnection", result)
                 result
             } catch (e: Exception) {
-                Log.e(TAG, "endConnection error: ${e.message}")
+                GodotIapLog.failure("endConnection", e)
                 false
             }
         }
@@ -130,7 +122,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun fetchProducts(requestJson: String): String {
-        Log.d(TAG, "fetchProducts called with: $requestJson")
+        GodotIapLog.payload("fetchProducts", requestJson)
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -163,22 +155,22 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 when (result) {
                     is FetchProductsResultProducts -> {
                         result.value?.forEach { product ->
-                            productsArray.put(productToJson(product))
+                            productsArray.put(JSONObject(product.toJson()))
                         }
                     }
                     is FetchProductsResultSubscriptions -> {
                         result.value?.forEach { subscription ->
-                            productsArray.put(subscriptionToJson(subscription))
+                            productsArray.put(JSONObject(subscription.toJson()))
                         }
                     }
                     is FetchProductsResultAll -> {
                         result.value?.forEach { item ->
                             when (item) {
                                 is ProductOrSubscription.ProductItem -> {
-                                    productsArray.put(productToJson(item.value))
+                                    productsArray.put(JSONObject(item.value.toJson()))
                                 }
                                 is ProductOrSubscription.ProductSubscriptionItem -> {
-                                    productsArray.put(subscriptionToJson(item.value))
+                                    productsArray.put(JSONObject(item.value.toJson()))
                                 }
                             }
                         }
@@ -189,10 +181,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     put("products", productsArray)
                 }
 
+                GodotIapLog.result("fetchProducts", responseJson.toString())
                 emitSignal("products_fetched", responseJson.toString())
                 responseJson.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "fetchProducts error: ${e.message}")
+                GodotIapLog.failure("fetchProducts", e)
                 JSONObject().apply {
                     put("error", e.message)
                     put("products", JSONArray())
@@ -205,9 +198,14 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     // Purchases
     // ==========================================
 
+    /**
+     * Request purchase - handles both in-app and subscription products
+     * Uses JSON params like expo-iap for flexibility
+     * @param paramsJson JSON string containing: type, skus, obfuscatedAccountId, etc.
+     */
     @UsedByGodot
-    fun requestPurchase(sku: String): String {
-        Log.d(TAG, "requestPurchase called with: $sku")
+    fun requestPurchase(paramsJson: String): String {
+        GodotIapLog.payload("requestPurchase", paramsJson)
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -218,16 +216,48 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return runBlocking {
             try {
-                val params = RequestPurchaseProps(
-                    request = RequestPurchaseProps.Request.Purchase(
-                        RequestPurchasePropsByPlatforms(
-                            google = RequestPurchaseAndroidProps(skus = listOf(sku))
-                        )
-                    ),
-                    type = ProductQueryType.InApp
-                )
+                // Parse params using helper (like expo-iap)
+                val params = GodotIapHelper.parseRequestPurchaseParams(paramsJson)
 
-                val result = store.requestPurchase(params)
+                // Determine product type
+                val productType = GodotIapHelper.parseProductQueryType(params.type)
+
+                // Build request props based on product type (exactly like expo-iap)
+                val requestProps = when (productType) {
+                    ProductQueryType.Subs -> {
+                        val android = RequestSubscriptionAndroidProps(
+                            isOfferPersonalized = params.isOfferPersonalized,
+                            obfuscatedAccountIdAndroid = params.obfuscatedAccountId,
+                            obfuscatedProfileIdAndroid = params.obfuscatedProfileId,
+                            purchaseTokenAndroid = params.purchaseToken,
+                            replacementModeAndroid = params.replacementMode,
+                            skus = params.skus,
+                            subscriptionOffers = params.subscriptionOffers.takeIf { it.isNotEmpty() }
+                        )
+                        RequestPurchaseProps(
+                            request = RequestPurchaseProps.Request.Subscription(
+                                RequestSubscriptionPropsByPlatforms(android = android)
+                            ),
+                            type = ProductQueryType.Subs
+                        )
+                    }
+                    else -> {
+                        val android = RequestPurchaseAndroidProps(
+                            isOfferPersonalized = params.isOfferPersonalized,
+                            obfuscatedAccountIdAndroid = params.obfuscatedAccountId,
+                            obfuscatedProfileIdAndroid = params.obfuscatedProfileId,
+                            skus = params.skus
+                        )
+                        RequestPurchaseProps(
+                            request = RequestPurchaseProps.Request.Purchase(
+                                RequestPurchasePropsByPlatforms(android = android)
+                            ),
+                            type = ProductQueryType.InApp
+                        )
+                    }
+                }
+
+                val result = store.requestPurchase(requestProps)
 
                 when (result) {
                     is RequestPurchaseResultPurchase -> {
@@ -270,19 +300,20 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     }
                 }
             } catch (e: OpenIapError.PurchaseCancelled) {
+                GodotIapLog.debug("requestPurchase cancelled by user")
                 JSONObject().apply {
                     put("success", false)
                     put("userCancelled", true)
                 }.toString()
             } catch (e: OpenIapError) {
-                Log.e(TAG, "requestPurchase error: ${e.message}")
+                GodotIapLog.failure("requestPurchase", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
                     put("errorCode", e.code)
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "requestPurchase error: ${e.message}")
+                GodotIapLog.failure("requestPurchase", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -293,7 +324,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun finishTransaction(purchaseJson: String, isConsumable: Boolean): String {
-        Log.d(TAG, "finishTransaction called")
+        GodotIapLog.payload("finishTransaction", mapOf("purchaseJson" to purchaseJson, "isConsumable" to isConsumable))
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -313,17 +344,19 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
                 if (purchase != null) {
                     store.finishTransaction(purchase, isConsumable)
+                    GodotIapLog.result("finishTransaction", "success")
                     JSONObject().apply {
                         put("success", true)
                     }.toString()
                 } else {
+                    GodotIapLog.warning("finishTransaction: Purchase not found")
                     JSONObject().apply {
                         put("success", false)
                         put("error", "Purchase not found")
                     }.toString()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "finishTransaction error: ${e.message}")
+                GodotIapLog.failure("finishTransaction", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -334,7 +367,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun restorePurchases(): String {
-        Log.d(TAG, "restorePurchases called")
+        GodotIapLog.debug("restorePurchases called")
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -350,15 +383,17 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
                 // Emit each purchase
                 purchases.forEach { purchase ->
-                    emitSignal("purchase_updated", purchaseToJson(purchase))
+                    val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
+                    emitSignal("purchase_updated", JSONObject(sanitized).toString())
                 }
 
+                GodotIapLog.result("restorePurchases", "count=${purchases.size}")
                 JSONObject().apply {
                     put("success", true)
                     put("count", purchases.size)
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "restorePurchases error: ${e.message}")
+                GodotIapLog.failure("restorePurchases", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -369,7 +404,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun getAvailablePurchases(): String {
-        Log.d(TAG, "getAvailablePurchases called")
+        GodotIapLog.debug("getAvailablePurchases called")
 
         if (!isInitialized) {
             return JSONArray().toString()
@@ -381,12 +416,14 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val purchasesArray = JSONArray()
 
                 purchases.forEach { purchase ->
-                    purchasesArray.put(JSONObject(purchaseToJson(purchase)))
+                    val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
+                    purchasesArray.put(JSONObject(sanitized))
                 }
 
+                GodotIapLog.result("getAvailablePurchases", "count=${purchasesArray.length()}")
                 purchasesArray.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "getAvailablePurchases error: ${e.message}")
+                GodotIapLog.failure("getAvailablePurchases", e)
                 JSONArray().toString()
             }
         }
@@ -398,7 +435,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun getActiveSubscriptions(subscriptionIdsJson: String?): String {
-        Log.d(TAG, "getActiveSubscriptions called")
+        GodotIapLog.debug("getActiveSubscriptions called")
 
         if (!isInitialized) {
             return JSONArray().toString()
@@ -419,19 +456,14 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val subscriptionsArray = JSONArray()
 
                 subscriptions.forEach { sub ->
-                    subscriptionsArray.put(JSONObject().apply {
-                        put("productId", sub.productId)
-                        put("isActive", sub.isActive)
-                        put("transactionId", sub.transactionId)
-                        put("transactionDate", sub.transactionDate)
-                        sub.purchaseToken?.let { put("purchaseToken", it) }
-                        sub.autoRenewingAndroid?.let { put("autoRenewing", it) }
-                    })
+                    val sanitized = GodotIapHelper.sanitizeDictionary(sub.toJson())
+                    subscriptionsArray.put(JSONObject(sanitized))
                 }
 
+                GodotIapLog.result("getActiveSubscriptions", "count=${subscriptionsArray.length()}")
                 subscriptionsArray.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "getActiveSubscriptions error: ${e.message}")
+                GodotIapLog.failure("getActiveSubscriptions", e)
                 JSONArray().toString()
             }
         }
@@ -439,7 +471,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun hasActiveSubscriptions(subscriptionIdsJson: String?): String {
-        Log.d(TAG, "hasActiveSubscriptions called")
+        GodotIapLog.debug("hasActiveSubscriptions called")
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -461,12 +493,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
                 val hasActive = store.hasActiveSubscriptions(subscriptionIds)
 
+                GodotIapLog.result("hasActiveSubscriptions", hasActive)
                 JSONObject().apply {
                     put("success", true)
                     put("hasActive", hasActive)
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "hasActiveSubscriptions error: ${e.message}")
+                GodotIapLog.failure("hasActiveSubscriptions", e)
                 JSONObject().apply {
                     put("success", false)
                     put("hasActive", false)
@@ -482,7 +515,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun acknowledgePurchaseAndroid(purchaseToken: String): String {
-        Log.d(TAG, "acknowledgePurchaseAndroid called")
+        GodotIapLog.debug("acknowledgePurchaseAndroid called")
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -494,11 +527,12 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return runBlocking {
             try {
                 openIap.acknowledgePurchaseAndroid(purchaseToken)
+                GodotIapLog.result("acknowledgePurchaseAndroid", "success")
                 JSONObject().apply {
                     put("success", true)
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "acknowledgePurchaseAndroid error: ${e.message}")
+                GodotIapLog.failure("acknowledgePurchaseAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -509,7 +543,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun consumePurchaseAndroid(purchaseToken: String): String {
-        Log.d(TAG, "consumePurchaseAndroid called")
+        GodotIapLog.debug("consumePurchaseAndroid called")
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -521,11 +555,12 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return runBlocking {
             try {
                 openIap.consumePurchaseAndroid(purchaseToken)
+                GodotIapLog.result("consumePurchaseAndroid", "success")
                 JSONObject().apply {
                     put("success", true)
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "consumePurchaseAndroid error: ${e.message}")
+                GodotIapLog.failure("consumePurchaseAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -541,7 +576,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     @Suppress("DEPRECATION")
     @UsedByGodot
     fun checkAlternativeBillingAvailabilityAndroid(): String {
-        Log.d(TAG, "checkAlternativeBillingAvailabilityAndroid called")
+        GodotIapLog.debug("checkAlternativeBillingAvailabilityAndroid called")
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -554,12 +589,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return runBlocking {
             try {
                 val isAvailable = openIap.checkAlternativeBillingAvailability()
+                GodotIapLog.result("checkAlternativeBillingAvailabilityAndroid", isAvailable)
                 JSONObject().apply {
                     put("success", true)
                     put("isAvailable", isAvailable)
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "checkAlternativeBillingAvailabilityAndroid error: ${e.message}")
+                GodotIapLog.failure("checkAlternativeBillingAvailabilityAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("isAvailable", false)
@@ -572,7 +608,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     @Suppress("DEPRECATION")
     @UsedByGodot
     fun showAlternativeBillingDialogAndroid(): String {
-        Log.d(TAG, "showAlternativeBillingDialogAndroid called")
+        GodotIapLog.debug("showAlternativeBillingDialogAndroid called")
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -591,12 +627,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return runBlocking {
             try {
                 val userAccepted = openIap.showAlternativeBillingInformationDialog(activity)
+                GodotIapLog.result("showAlternativeBillingDialogAndroid", userAccepted)
                 JSONObject().apply {
                     put("success", true)
                     put("userAccepted", userAccepted)
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "showAlternativeBillingDialogAndroid error: ${e.message}")
+                GodotIapLog.failure("showAlternativeBillingDialogAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -608,7 +645,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     @Suppress("DEPRECATION")
     @UsedByGodot
     fun createAlternativeBillingTokenAndroid(): String {
-        Log.d(TAG, "createAlternativeBillingTokenAndroid called")
+        GodotIapLog.debug("createAlternativeBillingTokenAndroid called")
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -620,12 +657,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return runBlocking {
             try {
                 val token = openIap.createAlternativeBillingReportingToken()
+                GodotIapLog.result("createAlternativeBillingTokenAndroid", "token generated")
                 JSONObject().apply {
                     put("success", true)
                     put("token", token ?: "")
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "createAlternativeBillingTokenAndroid error: ${e.message}")
+                GodotIapLog.failure("createAlternativeBillingTokenAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -636,7 +674,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun isBillingProgramAvailableAndroid(billingProgram: String): String {
-        Log.d(TAG, "isBillingProgramAvailableAndroid called with: $billingProgram")
+        GodotIapLog.payload("isBillingProgramAvailableAndroid", billingProgram)
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -650,13 +688,14 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             try {
                 val program = mapBillingProgram(billingProgram)
                 val result = store.isBillingProgramAvailable(program)
+                GodotIapLog.result("isBillingProgramAvailableAndroid", result.isAvailable)
                 JSONObject().apply {
                     put("success", true)
                     put("isAvailable", result.isAvailable)
                     put("billingProgram", billingProgram)
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "isBillingProgramAvailableAndroid error: ${e.message}")
+                GodotIapLog.failure("isBillingProgramAvailableAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("isAvailable", false)
@@ -668,7 +707,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun launchExternalLinkAndroid(paramsJson: String): String {
-        Log.d(TAG, "launchExternalLinkAndroid called with: $paramsJson")
+        GodotIapLog.payload("launchExternalLinkAndroid", paramsJson)
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -700,12 +739,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 )
 
                 val result = store.launchExternalLink(activity, params)
+                GodotIapLog.result("launchExternalLinkAndroid", result)
                 JSONObject().apply {
                     put("success", true)
                     put("launched", result)
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "launchExternalLinkAndroid error: ${e.message}")
+                GodotIapLog.failure("launchExternalLinkAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -716,7 +756,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun createBillingProgramReportingDetailsAndroid(billingProgram: String): String {
-        Log.d(TAG, "createBillingProgramReportingDetailsAndroid called with: $billingProgram")
+        GodotIapLog.payload("createBillingProgramReportingDetailsAndroid", billingProgram)
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -729,13 +769,14 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             try {
                 val program = mapBillingProgram(billingProgram)
                 val result = store.createBillingProgramReportingDetails(program)
+                GodotIapLog.result("createBillingProgramReportingDetailsAndroid", "token generated")
                 JSONObject().apply {
                     put("success", true)
                     put("billingProgram", billingProgram)
                     put("externalTransactionToken", result.externalTransactionToken ?: "")
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "createBillingProgramReportingDetailsAndroid error: ${e.message}")
+                GodotIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -750,7 +791,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun getStorefrontAndroid(): String {
-        Log.d(TAG, "getStorefrontAndroid called")
+        GodotIapLog.debug("getStorefrontAndroid called")
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -762,12 +803,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return runBlocking {
             try {
                 val countryCode = openIap.getStorefront()
+                GodotIapLog.result("getStorefrontAndroid", countryCode)
                 JSONObject().apply {
                     put("success", true)
                     put("countryCode", countryCode ?: "")
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "getStorefrontAndroid error: ${e.message}")
+                GodotIapLog.failure("getStorefrontAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -778,7 +820,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun deepLinkToSubscriptions(optionsJson: String): String {
-        Log.d(TAG, "deepLinkToSubscriptions called with: $optionsJson")
+        GodotIapLog.payload("deepLinkToSubscriptions", optionsJson)
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -798,11 +840,12 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }
 
                 openIap.deepLinkToSubscriptions(options)
+                GodotIapLog.result("deepLinkToSubscriptions", "success")
                 JSONObject().apply {
                     put("success", true)
                 }.toString()
             } catch (e: Exception) {
-                Log.e(TAG, "deepLinkToSubscriptions error: ${e.message}")
+                GodotIapLog.failure("deepLinkToSubscriptions", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -817,7 +860,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun verifyPurchase(propsJson: String): String {
-        Log.d(TAG, "verifyPurchase called")
+        GodotIapLog.payload("verifyPurchase", propsJson)
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -845,21 +888,24 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     val result = openIap.verifyPurchase(props)
                     val resultMap = result.toJson()
 
-                    JSONObject().apply {
+                    val response = JSONObject().apply {
                         for ((key, value) in resultMap) {
                             put(key, value)
                         }
                         // Set success after loop to avoid being overwritten by resultMap
                         put("success", true)
                     }.toString()
+                    GodotIapLog.result("verifyPurchase", "verified")
+                    response
                 } else {
+                    GodotIapLog.warning("verifyPurchase: Missing google verification options")
                     JSONObject().apply {
                         put("success", false)
                         put("error", "Missing google verification options")
                     }.toString()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "verifyPurchase error: ${e.message}")
+                GodotIapLog.failure("verifyPurchase", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -870,7 +916,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
     @UsedByGodot
     fun verifyPurchaseWithProvider(propsJson: String): String {
-        Log.d(TAG, "verifyPurchaseWithProvider called")
+        GodotIapLog.payload("verifyPurchaseWithProvider", propsJson)
 
         if (!isInitialized) {
             return JSONObject().apply {
@@ -905,7 +951,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
                 val result = openIap.verifyPurchaseWithProvider(providerProps)
 
-                JSONObject().apply {
+                val response = JSONObject().apply {
                     put("success", true)
                     put("provider", result.provider.toJson())
                     result.iapkit?.let { iapkit ->
@@ -924,8 +970,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                         put("errors", errorsArray)
                     }
                 }.toString()
+                GodotIapLog.result("verifyPurchaseWithProvider", "verified")
+                response
             } catch (e: Exception) {
-                Log.e(TAG, "verifyPurchaseWithProvider error: ${e.message}")
+                GodotIapLog.failure("verifyPurchaseWithProvider", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -941,78 +989,6 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     @UsedByGodot
     fun getPackageNameAndroid(): String {
         return activity?.packageName ?: ""
-    }
-
-    // ==========================================
-    // Helpers
-    // ==========================================
-
-    private fun productToJson(product: Product): JSONObject {
-        return when (product) {
-            is ProductAndroid -> JSONObject().apply {
-                put("id", product.id)
-                put("title", product.title)
-                put("description", product.description)
-                put("displayPrice", product.displayPrice)
-                put("price", product.price)
-                put("currency", product.currency)
-                put("type", product.type.rawValue)
-                put("platform", "android")
-            }
-            else -> JSONObject().apply {
-                put("id", "")
-                put("title", "")
-                put("description", "")
-                put("displayPrice", "")
-                put("platform", "android")
-            }
-        }
-    }
-
-    private fun subscriptionToJson(subscription: ProductSubscription): JSONObject {
-        return when (subscription) {
-            is ProductSubscriptionAndroid -> JSONObject().apply {
-                put("id", subscription.id)
-                put("title", subscription.title)
-                put("description", subscription.description)
-                put("displayPrice", subscription.displayPrice)
-                put("currency", subscription.currency)
-                put("type", "subs")
-                put("platform", "android")
-            }
-            else -> JSONObject().apply {
-                put("id", "")
-                put("title", "")
-                put("description", "")
-                put("displayPrice", "")
-                put("type", "subs")
-                put("platform", "android")
-            }
-        }
-    }
-
-    private fun purchaseToJson(purchase: Purchase): String {
-        return when (purchase) {
-            is PurchaseAndroid -> JSONObject().apply {
-                put("id", purchase.id)
-                put("productId", purchase.productId)
-                put("purchaseToken", purchase.purchaseToken)
-                put("purchaseState", purchase.purchaseState.rawValue)
-                put("transactionDate", purchase.transactionDate)
-                put("quantity", purchase.quantity)
-                put("isAutoRenewing", purchase.isAutoRenewing)
-                put("platform", "android")
-                put("store", purchase.store.rawValue)
-                purchase.isAcknowledgedAndroid?.let { put("isAcknowledged", it) }
-            }.toString()
-            else -> JSONObject().apply {
-                put("id", "")
-                put("productId", "")
-                put("purchaseToken", "")
-                put("purchaseState", "unknown")
-                put("platform", "android")
-            }.toString()
-        }
     }
 
     // ==========================================
@@ -1041,4 +1017,5 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             "link-to-app-download" -> OpenIapExternalLinkType.LinkToAppDownload
             else -> OpenIapExternalLinkType.Unspecified
         }
+
 }

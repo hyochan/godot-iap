@@ -25,9 +25,7 @@ We will keep working on it as time goes by just like we did in other IAP librari
 
 ## Documentation
 
-Visit the documentation site for installation guides, API reference, and examples:
-
-### **[hyochan.github.io/godot-iap](https://hyochan.github.io/godot-iap)**
+Visit the [documentation site](https://hyochan.github.io/godot-iap) for [installation guides](https://hyochan.github.io/godot-iap/getting-started/installation), [API reference](https://hyochan.github.io/godot-iap/api), and [examples](https://hyochan.github.io/godot-iap/examples/purchase-flow).
 
 ## Installation
 
@@ -39,55 +37,7 @@ See the [Installation Guide](https://hyochan.github.io/godot-iap/getting-started
 
 ## Quick Start
 
-```gdscript
-extends Node
-
-# Load OpenIAP types for type-safe API
-const Types = preload("res://addons/godot-iap/types.gd")
-
-func _ready():
-    # Connect signals
-    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
-    GodotIapPlugin.purchase_error.connect(_on_purchase_error)
-
-    # Initialize connection
-    if GodotIapPlugin.init_connection():
-        _fetch_products()
-
-func _fetch_products():
-    # Create typed ProductRequest
-    var request = Types.ProductRequest.new()
-    request.skus = ["coins_100", "premium"]
-    request.type = Types.ProductQueryType.ALL
-
-    # Returns Array of typed products (Types.ProductAndroid or Types.ProductIOS)
-    var products = GodotIapPlugin.fetch_products(request)
-    for product in products:
-        # Access typed properties directly
-        print("Product: ", product.id, " - ", product.display_price)
-
-func _on_purchase_updated(purchase: Dictionary):
-    if purchase.get("purchaseState") == "Purchased":
-        # Finish transaction with typed PurchaseInput
-        var purchase_input = Types.PurchaseInput.from_dict(purchase)
-        GodotIapPlugin.finish_transaction(purchase_input, true)  # true = consumable
-
-func _on_purchase_error(error: Dictionary):
-    print("Error: ", error.get("code"), " - ", error.get("message"))
-
-func buy(product_id: String):
-    # Create typed RequestPurchaseProps
-    var props = Types.RequestPurchaseProps.new()
-    props.request = Types.RequestPurchasePropsByPlatforms.new()
-    props.request.google = Types.RequestPurchaseAndroidProps.new()
-    props.request.google.skus = [product_id]
-    props.request.apple = Types.RequestPurchaseIosProps.new()
-    props.request.apple.sku = product_id
-    props.type = Types.ProductQueryType.IN_APP
-
-    # Returns typed purchase object or null
-    var purchase = GodotIapPlugin.request_purchase(props)
-```
+See the [Quick Start Guide](https://hyochan.github.io/godot-iap/#quick-start) for complete code examples and setup instructions.
 
 ## License
 

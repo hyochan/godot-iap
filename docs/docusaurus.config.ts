@@ -42,13 +42,6 @@ const config: Config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl: 'https://github.com/hyochan/godot-iap/tree/main/docs/',
-          lastVersion: 'current',
-          versions: {
-            current: {
-              label: '1.0-beta (Current)',
-              path: '',
-            },
-          },
         },
         blog: false,
         theme: {
@@ -87,11 +80,6 @@ const config: Config = {
         height: 32,
       },
       items: [
-        {
-          type: 'docsVersionDropdown',
-          position: 'left',
-          dropdownActiveClassDisabled: true,
-        },
         {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',

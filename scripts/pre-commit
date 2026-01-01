@@ -23,6 +23,12 @@ if [ -n "$IOS_FILES_CHANGED" ]; then
         # Check if framework exists
         if [ -d "addons/godot-iap/bin/ios/GodotIap.framework" ]; then
             echo -e "${GREEN}✓ Framework verified at addons/godot-iap/bin/ios/${NC}"
+
+            # Auto-stage the built framework binaries
+            echo -e "${YELLOW}Staging built framework files...${NC}"
+            git add addons/godot-iap/bin/ios/GodotIap.framework/
+            git add addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/
+            echo -e "${GREEN}✓ Framework files staged for commit${NC}"
         else
             echo -e "${RED}✗ Framework not found after build${NC}"
             exit 1

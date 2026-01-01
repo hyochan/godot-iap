@@ -95,13 +95,7 @@ func _clear_pending_purchases() -> void:
 
 		print("[IAPManager] Finishing pending purchase: %s (consumable: %s)" % [product_id, is_consumable])
 
-		# Convert to dictionary for finish_transaction_dict
-		var purchase_dict: Dictionary = {
-			"productId": product_id,
-			"purchaseToken": purchase.purchase_token,
-		}
-
-		var result = GodotIapPlugin.finish_transaction_dict(purchase_dict, is_consumable)
+		var result = GodotIapPlugin.finish_transaction_dict(purchase.to_dict(), is_consumable)
 		print("[IAPManager] finish_transaction_dict result: success=%s" % result.success)
 
 	print("[IAPManager] Pending purchases cleared")
@@ -222,7 +216,7 @@ func _purchase(product_id: String) -> void:
 	print("[IAPManager] Requesting purchase: %s" % product_id)
 
 	# Determine product type (subscription vs in-app)
-	var is_subscription = (product_id == PRODUCT_PREMIUM or product_id == PRODUCT_PREMIUM_YEAR)
+	var is_subscription = (product_id == PRODUCT_PREMIUM_YEAR)
 
 	# Create typed RequestPurchaseProps
 	var props = Types.RequestPurchaseProps.new()

@@ -12,7 +12,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 <IapKitBanner />
 
 :::info Version
-This documentation is for **godot-iap v1.0-beta** which includes StoreKit 2 for iOS and Google Play Billing v8+ for Android. Native code is powered by [openiap](https://openiap.dev).
+This documentation is for **godot-iap v1.0** which includes StoreKit 2 for iOS and Google Play Billing v8+ for Android. Native code is powered by [openiap](https://openiap.dev).
 :::
 
 A comprehensive in-app purchase plugin for Godot 4.x that **conforms to the [Open IAP specification](https://openiap.dev)**.
@@ -59,7 +59,7 @@ We will keep working on it as time goes by just like we did in **expo-iap**, **f
 
 ## Version Information
 
-- **Current Version**: 1.0-beta
+- **Current Version**: 1.0
 - **Godot Compatibility**: Godot 4.3+
 - **iOS Requirements**: iOS 15.0+, Xcode 16+ (Swift 6.0+) (via [openiap](https://openiap.dev))
 - **Android Requirements**: API level 24+ (via [openiap](https://openiap.dev))

@@ -196,7 +196,7 @@ test-setup: android
 	@cp $(EXAMPLE_DIR)/main.gd $(TEST_PROJECT_DIR)/
 	@cp $(EXAMPLE_DIR)/main.tscn $(TEST_PROJECT_DIR)/
 	@cp $(EXAMPLE_DIR)/iap_manager.gd $(TEST_PROJECT_DIR)/
-	@cp $(EXAMPLE_DIR)/martie.svg $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/*.svg $(TEST_PROJECT_DIR)/
 	@cp $(EXAMPLE_DIR)/export_presets.cfg $(TEST_PROJECT_DIR)/
 	@cp -R $(EXAMPLE_DIR)/player.tscn $(TEST_PROJECT_DIR)/ 2>/dev/null || true
 	@cp -R $(EXAMPLE_DIR)/obstacle.tscn $(TEST_PROJECT_DIR)/ 2>/dev/null || true

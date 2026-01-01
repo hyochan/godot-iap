@@ -2,6 +2,24 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "🔨 iOS: Build Framework",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["ios"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "🔨 Android: Build Framework",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["android"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
       "name": "🍎 iOS: Build & Run",
       "type": "node",
       "request": "launch",

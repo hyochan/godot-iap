@@ -50,55 +50,39 @@ jobs:
           path: android/build/outputs/aar/*.aar
           retention-days: 7
 
-  # iOS Build Check
-  ios-build:
-    name: iOS Build
-    runs-on: macos-15
+  # iOS Framework Check (pre-built via pre-commit hook)
+  ios-check:
+    name: iOS Framework Check
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Checkout SwiftGodot
-        uses: actions/checkout@v4
-        with:
-          repository: migueldeicaza/SwiftGodot
-          path: SwiftGodot
-          ref: v0.74.0
-
-      - name: Select Xcode 26 for Swift 6
+      - name: Verify iOS frameworks exist
         run: |
-          # Use Xcode 26 which includes Swift 6
-          sudo xcode-select -s /Applications/Xcode_26.0.1.app/Contents/Developer
-          echo "Xcode version:"
-          xcodebuild -version
-          echo "Swift version:"
-          swift --version
+          echo "Checking pre-built iOS frameworks..."
 
-      - name: Sync OpenIAP versions
-        run: |
-          chmod +x scripts/sync-versions.sh
-          ./scripts/sync-versions.sh
+          # Check GodotIap framework
+          if [ ! -f "Example/addons/godot-iap/bin/ios/GodotIap.framework/GodotIap" ]; then
+            echo "Error: GodotIap.framework not found"
+            echo "iOS frameworks should be built locally via pre-commit hook"
+            exit 1
+          fi
 
-      - name: Build iOS Framework
-        run: |
-          cd ios-gdextension
-          # Limit parallelism to avoid memory issues with SwiftGodot compilation
-          xcodebuild -scheme GodotIap \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -configuration Release \
-            -derivedDataPath .build-xcode \
-            -jobs 2 \
-            build
-        timeout-minutes: 30
+          # Check SwiftGodotRuntime framework
+          if [ ! -f "Example/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime" ]; then
+            echo "Error: SwiftGodotRuntime.framework not found"
+            exit 1
+          fi
 
-      - name: Upload iOS Framework
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-framework
-          path: ios-gdextension/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/*.framework
-          retention-days: 7
+          echo "✓ iOS frameworks verified"
+
+          # Show framework info
+          echo ""
+          echo "Framework sizes:"
+          ls -lh Example/addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
+          ls -lh Example/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
 
   # GDScript Validation
   gdscript-check:
@@ -174,14 +158,14 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [android-build, ios-build, gdscript-check, docs-build]
+    needs: [android-build, ios-check, gdscript-check, docs-build]
     if: always()
 
     steps:
       - name: Check all jobs passed
         run: |
           if [ "${{ needs.android-build.result }}" != "success" ] || \
-             [ "${{ needs.ios-build.result }}" != "success" ] || \
+             [ "${{ needs.ios-check.result }}" != "success" ] || \
              [ "${{ needs.gdscript-check.result }}" != "success" ] || \
              [ "${{ needs.docs-build.result }}" != "success" ]; then
             echo "One or more jobs failed"

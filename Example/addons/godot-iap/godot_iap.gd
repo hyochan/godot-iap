@@ -273,7 +273,8 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 	if not _native_plugin:
 		return { "success": false, "error": "Not available in mock mode" }
 
-	var request = args.get("request", {})
+	# Support both "requestPurchase" (from to_dict) and "request" (legacy)
+	var request = args.get("requestPurchase", args.get("request", {}))
 	var purchase_type = args.get("type", "in-app")
 
 	var sku = ""
@@ -307,6 +308,16 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 func finish_transaction(purchase: Types.PurchaseInput, is_consumable: bool = false) -> Types.VoidResult:
 	print("[GodotIap] finish_transaction called, consumable: ", is_consumable)
 	var result = _finish_transaction_raw(purchase.to_dict(), is_consumable)
+	return Types.VoidResult.from_dict(result)
+
+## Finish transaction with raw Dictionary (convenience method)
+## Use this when you have the purchase dictionary from purchase_updated signal
+## @param purchase: Raw purchase dictionary with transactionId
+## @param is_consumable: Whether to consume (true) or acknowledge (false)
+## Returns Types.VoidResult
+func finish_transaction_dict(purchase: Dictionary, is_consumable: bool = false) -> Types.VoidResult:
+	print("[GodotIap] finish_transaction_dict called, consumable: ", is_consumable)
+	var result = _finish_transaction_raw(purchase, is_consumable)
 	return Types.VoidResult.from_dict(result)
 
 ## Internal: Finish transaction with raw Dictionary

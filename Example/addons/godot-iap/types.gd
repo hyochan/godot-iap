@@ -282,25 +282,25 @@ class ActiveSubscription:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["productId"] = product_id
-		result["isActive"] = is_active
-		result["expirationDateIOS"] = expiration_date_ios
-		result["autoRenewingAndroid"] = auto_renewing_android
-		result["environmentIOS"] = environment_ios
-		result["willExpireSoon"] = will_expire_soon
-		result["daysUntilExpirationIOS"] = days_until_expiration_ios
-		result["transactionId"] = transaction_id
-		result["purchaseToken"] = purchase_token
-		result["transactionDate"] = transaction_date
-		result["basePlanIdAndroid"] = base_plan_id_android
-		result["purchaseTokenAndroid"] = purchase_token_android
-		result["currentPlanId"] = current_plan_id
+		var dict = {}
+		dict["productId"] = product_id
+		dict["isActive"] = is_active
+		dict["expirationDateIOS"] = expiration_date_ios
+		dict["autoRenewingAndroid"] = auto_renewing_android
+		dict["environmentIOS"] = environment_ios
+		dict["willExpireSoon"] = will_expire_soon
+		dict["daysUntilExpirationIOS"] = days_until_expiration_ios
+		dict["transactionId"] = transaction_id
+		dict["purchaseToken"] = purchase_token
+		dict["transactionDate"] = transaction_date
+		dict["basePlanIdAndroid"] = base_plan_id_android
+		dict["purchaseTokenAndroid"] = purchase_token_android
+		dict["currentPlanId"] = current_plan_id
 		if renewal_info_ios != null and renewal_info_ios.has_method("to_dict"):
-			result["renewalInfoIOS"] = renewal_info_ios.to_dict()
+			dict["renewalInfoIOS"] = renewal_info_ios.to_dict()
 		else:
-			result["renewalInfoIOS"] = renewal_info_ios
-		return result
+			dict["renewalInfoIOS"] = renewal_info_ios
+		return dict
 
 class AppTransaction:
 	var bundle_id: String
@@ -348,21 +348,21 @@ class AppTransaction:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["bundleId"] = bundle_id
-		result["appVersion"] = app_version
-		result["originalAppVersion"] = original_app_version
-		result["originalPurchaseDate"] = original_purchase_date
-		result["deviceVerification"] = device_verification
-		result["deviceVerificationNonce"] = device_verification_nonce
-		result["environment"] = environment
-		result["signedDate"] = signed_date
-		result["appId"] = app_id
-		result["appVersionId"] = app_version_id
-		result["preorderDate"] = preorder_date
-		result["appTransactionId"] = app_transaction_id
-		result["originalPlatform"] = original_platform
-		return result
+		var dict = {}
+		dict["bundleId"] = bundle_id
+		dict["appVersion"] = app_version
+		dict["originalAppVersion"] = original_app_version
+		dict["originalPurchaseDate"] = original_purchase_date
+		dict["deviceVerification"] = device_verification
+		dict["deviceVerificationNonce"] = device_verification_nonce
+		dict["environment"] = environment
+		dict["signedDate"] = signed_date
+		dict["appId"] = app_id
+		dict["appVersionId"] = app_version_id
+		dict["preorderDate"] = preorder_date
+		dict["appTransactionId"] = app_transaction_id
+		dict["originalPlatform"] = original_platform
+		return dict
 
 ## Result of checking billing program availability (Android) Available in Google Play Billing Library 8.2.0+
 class BillingProgramAvailabilityResultAndroid:
@@ -380,10 +380,13 @@ class BillingProgramAvailabilityResultAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["isAvailable"] = is_available
-		result["billingProgram"] = billing_program
-		return result
+		var dict = {}
+		dict["isAvailable"] = is_available
+		if BILLING_PROGRAM_ANDROID_VALUES.has(billing_program):
+			dict["billingProgram"] = BILLING_PROGRAM_ANDROID_VALUES[billing_program]
+		else:
+			dict["billingProgram"] = billing_program
+		return dict
 
 ## Reporting details for transactions made outside of Google Play Billing (Android) Contains the external transaction token needed for reporting Available in Google Play Billing Library 8.2.0+
 class BillingProgramReportingDetailsAndroid:
@@ -401,10 +404,13 @@ class BillingProgramReportingDetailsAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["billingProgram"] = billing_program
-		result["externalTransactionToken"] = external_transaction_token
-		return result
+		var dict = {}
+		if BILLING_PROGRAM_ANDROID_VALUES.has(billing_program):
+			dict["billingProgram"] = BILLING_PROGRAM_ANDROID_VALUES[billing_program]
+		else:
+			dict["billingProgram"] = billing_program
+		dict["externalTransactionToken"] = external_transaction_token
+		return dict
 
 ## Details provided when user selects developer billing option (Android) Received via DeveloperProvidedBillingListener callback Available in Google Play Billing Library 8.3.0+
 class DeveloperProvidedBillingDetailsAndroid:
@@ -418,9 +424,9 @@ class DeveloperProvidedBillingDetailsAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["externalTransactionToken"] = external_transaction_token
-		return result
+		var dict = {}
+		dict["externalTransactionToken"] = external_transaction_token
+		return dict
 
 ## Discount amount details for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class DiscountAmountAndroid:
@@ -438,10 +444,10 @@ class DiscountAmountAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["discountAmountMicros"] = discount_amount_micros
-		result["formattedDiscountAmount"] = formatted_discount_amount
-		return result
+		var dict = {}
+		dict["discountAmountMicros"] = discount_amount_micros
+		dict["formattedDiscountAmount"] = formatted_discount_amount
+		return dict
 
 ## Discount display information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class DiscountDisplayInfoAndroid:
@@ -462,13 +468,13 @@ class DiscountDisplayInfoAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["percentageDiscount"] = percentage_discount
+		var dict = {}
+		dict["percentageDiscount"] = percentage_discount
 		if discount_amount != null and discount_amount.has_method("to_dict"):
-			result["discountAmount"] = discount_amount.to_dict()
+			dict["discountAmount"] = discount_amount.to_dict()
 		else:
-			result["discountAmount"] = discount_amount
-		return result
+			dict["discountAmount"] = discount_amount
+		return dict
 
 class DiscountIOS:
 	var identifier: String
@@ -501,16 +507,19 @@ class DiscountIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["identifier"] = identifier
-		result["type"] = type
-		result["numberOfPeriods"] = number_of_periods
-		result["price"] = price
-		result["priceAmount"] = price_amount
-		result["paymentMode"] = payment_mode
-		result["subscriptionPeriod"] = subscription_period
-		result["localizedPrice"] = localized_price
-		return result
+		var dict = {}
+		dict["identifier"] = identifier
+		dict["type"] = type
+		dict["numberOfPeriods"] = number_of_periods
+		dict["price"] = price
+		dict["priceAmount"] = price_amount
+		if PAYMENT_MODE_IOS_VALUES.has(payment_mode):
+			dict["paymentMode"] = PAYMENT_MODE_IOS_VALUES[payment_mode]
+		else:
+			dict["paymentMode"] = payment_mode
+		dict["subscriptionPeriod"] = subscription_period
+		dict["localizedPrice"] = localized_price
+		return dict
 
 class DiscountOfferIOS:
 	## Discount identifier
@@ -539,13 +548,13 @@ class DiscountOfferIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["identifier"] = identifier
-		result["keyIdentifier"] = key_identifier
-		result["nonce"] = nonce
-		result["signature"] = signature
-		result["timestamp"] = timestamp
-		return result
+		var dict = {}
+		dict["identifier"] = identifier
+		dict["keyIdentifier"] = key_identifier
+		dict["nonce"] = nonce
+		dict["signature"] = signature
+		dict["timestamp"] = timestamp
+		return dict
 
 class EntitlementIOS:
 	var sku: String
@@ -563,11 +572,11 @@ class EntitlementIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["sku"] = sku
-		result["transactionId"] = transaction_id
-		result["jsonRepresentation"] = json_representation
-		return result
+		var dict = {}
+		dict["sku"] = sku
+		dict["transactionId"] = transaction_id
+		dict["jsonRepresentation"] = json_representation
+		return dict
 
 ## External offer availability result (Android) @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 class ExternalOfferAvailabilityResultAndroid:
@@ -581,9 +590,9 @@ class ExternalOfferAvailabilityResultAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["isAvailable"] = is_available
-		return result
+		var dict = {}
+		dict["isAvailable"] = is_available
+		return dict
 
 ## External offer reporting details (Android) @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 class ExternalOfferReportingDetailsAndroid:
@@ -597,9 +606,9 @@ class ExternalOfferReportingDetailsAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["externalTransactionToken"] = external_transaction_token
-		return result
+		var dict = {}
+		dict["externalTransactionToken"] = external_transaction_token
+		return dict
 
 ## Result of presenting an external purchase link (iOS 18.2+)
 class ExternalPurchaseLinkResultIOS:
@@ -617,10 +626,10 @@ class ExternalPurchaseLinkResultIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["success"] = success
-		result["error"] = error
-		return result
+		var dict = {}
+		dict["success"] = success
+		dict["error"] = error
+		return dict
 
 ## Result of presenting external purchase notice sheet (iOS 18.2+)
 class ExternalPurchaseNoticeResultIOS:
@@ -638,10 +647,13 @@ class ExternalPurchaseNoticeResultIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["result"] = result
-		result["error"] = error
-		return result
+		var dict = {}
+		if EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES.has(result):
+			dict["result"] = EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES[result]
+		else:
+			dict["result"] = result
+		dict["error"] = error
+		return dict
 
 ## Limited quantity information for one-time purchase offers (Android) Available in Google Play Billing Library 7.0+
 class LimitedQuantityInfoAndroid:
@@ -659,10 +671,10 @@ class LimitedQuantityInfoAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["maximumQuantity"] = maximum_quantity
-		result["remainingQuantity"] = remaining_quantity
-		return result
+		var dict = {}
+		dict["maximumQuantity"] = maximum_quantity
+		dict["remainingQuantity"] = remaining_quantity
+		return dict
 
 ## Pre-order details for one-time purchase products (Android) Available in Google Play Billing Library 8.1.0+
 class PreorderDetailsAndroid:
@@ -680,10 +692,10 @@ class PreorderDetailsAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["preorderPresaleEndTimeMillis"] = preorder_presale_end_time_millis
-		result["preorderReleaseTimeMillis"] = preorder_release_time_millis
-		return result
+		var dict = {}
+		dict["preorderPresaleEndTimeMillis"] = preorder_presale_end_time_millis
+		dict["preorderReleaseTimeMillis"] = preorder_release_time_millis
+		return dict
 
 class PricingPhaseAndroid:
 	var formatted_price: String
@@ -710,14 +722,14 @@ class PricingPhaseAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["formattedPrice"] = formatted_price
-		result["priceCurrencyCode"] = price_currency_code
-		result["billingPeriod"] = billing_period
-		result["billingCycleCount"] = billing_cycle_count
-		result["priceAmountMicros"] = price_amount_micros
-		result["recurrenceMode"] = recurrence_mode
-		return result
+		var dict = {}
+		dict["formattedPrice"] = formatted_price
+		dict["priceCurrencyCode"] = price_currency_code
+		dict["billingPeriod"] = billing_period
+		dict["billingCycleCount"] = billing_cycle_count
+		dict["priceAmountMicros"] = price_amount_micros
+		dict["recurrenceMode"] = recurrence_mode
+		return dict
 
 class PricingPhasesAndroid:
 	var pricing_phase_list: Array[PricingPhaseAndroid]
@@ -735,7 +747,7 @@ class PricingPhasesAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if pricing_phase_list != null:
 			var arr = []
 			for item in pricing_phase_list:
@@ -743,10 +755,10 @@ class PricingPhasesAndroid:
 					arr.append(item.to_dict())
 				else:
 					arr.append(item)
-			result["pricingPhaseList"] = arr
+			dict["pricingPhaseList"] = arr
 		else:
-			result["pricingPhaseList"] = null
-		return result
+			dict["pricingPhaseList"] = null
+		return dict
 
 class ProductAndroid:
 	var id: String
@@ -807,18 +819,24 @@ class ProductAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["id"] = id
-		result["title"] = title
-		result["description"] = description
-		result["type"] = type
-		result["displayName"] = display_name
-		result["displayPrice"] = display_price
-		result["currency"] = currency
-		result["price"] = price
-		result["debugDescription"] = debug_description
-		result["platform"] = platform
-		result["nameAndroid"] = name_android
+		var dict = {}
+		dict["id"] = id
+		dict["title"] = title
+		dict["description"] = description
+		if PRODUCT_TYPE_VALUES.has(type):
+			dict["type"] = PRODUCT_TYPE_VALUES[type]
+		else:
+			dict["type"] = type
+		dict["displayName"] = display_name
+		dict["displayPrice"] = display_price
+		dict["currency"] = currency
+		dict["price"] = price
+		dict["debugDescription"] = debug_description
+		if IAP_PLATFORM_VALUES.has(platform):
+			dict["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			dict["platform"] = platform
+		dict["nameAndroid"] = name_android
 		if one_time_purchase_offer_details_android != null:
 			var arr = []
 			for item in one_time_purchase_offer_details_android:
@@ -826,9 +844,9 @@ class ProductAndroid:
 					arr.append(item.to_dict())
 				else:
 					arr.append(item)
-			result["oneTimePurchaseOfferDetailsAndroid"] = arr
+			dict["oneTimePurchaseOfferDetailsAndroid"] = arr
 		else:
-			result["oneTimePurchaseOfferDetailsAndroid"] = null
+			dict["oneTimePurchaseOfferDetailsAndroid"] = null
 		if subscription_offer_details_android != null:
 			var arr = []
 			for item in subscription_offer_details_android:
@@ -836,10 +854,10 @@ class ProductAndroid:
 					arr.append(item.to_dict())
 				else:
 					arr.append(item)
-			result["subscriptionOfferDetailsAndroid"] = arr
+			dict["subscriptionOfferDetailsAndroid"] = arr
 		else:
-			result["subscriptionOfferDetailsAndroid"] = null
-		return result
+			dict["subscriptionOfferDetailsAndroid"] = null
+		return dict
 
 ## One-time purchase offer details (Android) Available in Google Play Billing Library 7.0+
 class ProductAndroidOneTimePurchaseOfferDetail:
@@ -909,35 +927,35 @@ class ProductAndroidOneTimePurchaseOfferDetail:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["offerId"] = offer_id
-		result["offerToken"] = offer_token
-		result["offerTags"] = offer_tags
-		result["priceCurrencyCode"] = price_currency_code
-		result["formattedPrice"] = formatted_price
-		result["priceAmountMicros"] = price_amount_micros
-		result["fullPriceMicros"] = full_price_micros
+		var dict = {}
+		dict["offerId"] = offer_id
+		dict["offerToken"] = offer_token
+		dict["offerTags"] = offer_tags
+		dict["priceCurrencyCode"] = price_currency_code
+		dict["formattedPrice"] = formatted_price
+		dict["priceAmountMicros"] = price_amount_micros
+		dict["fullPriceMicros"] = full_price_micros
 		if discount_display_info != null and discount_display_info.has_method("to_dict"):
-			result["discountDisplayInfo"] = discount_display_info.to_dict()
+			dict["discountDisplayInfo"] = discount_display_info.to_dict()
 		else:
-			result["discountDisplayInfo"] = discount_display_info
+			dict["discountDisplayInfo"] = discount_display_info
 		if valid_time_window != null and valid_time_window.has_method("to_dict"):
-			result["validTimeWindow"] = valid_time_window.to_dict()
+			dict["validTimeWindow"] = valid_time_window.to_dict()
 		else:
-			result["validTimeWindow"] = valid_time_window
+			dict["validTimeWindow"] = valid_time_window
 		if limited_quantity_info != null and limited_quantity_info.has_method("to_dict"):
-			result["limitedQuantityInfo"] = limited_quantity_info.to_dict()
+			dict["limitedQuantityInfo"] = limited_quantity_info.to_dict()
 		else:
-			result["limitedQuantityInfo"] = limited_quantity_info
+			dict["limitedQuantityInfo"] = limited_quantity_info
 		if preorder_details_android != null and preorder_details_android.has_method("to_dict"):
-			result["preorderDetailsAndroid"] = preorder_details_android.to_dict()
+			dict["preorderDetailsAndroid"] = preorder_details_android.to_dict()
 		else:
-			result["preorderDetailsAndroid"] = preorder_details_android
+			dict["preorderDetailsAndroid"] = preorder_details_android
 		if rental_details_android != null and rental_details_android.has_method("to_dict"):
-			result["rentalDetailsAndroid"] = rental_details_android.to_dict()
+			dict["rentalDetailsAndroid"] = rental_details_android.to_dict()
 		else:
-			result["rentalDetailsAndroid"] = rental_details_android
-		return result
+			dict["rentalDetailsAndroid"] = rental_details_android
+		return dict
 
 class ProductIOS:
 	var id: String
@@ -994,26 +1012,35 @@ class ProductIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["id"] = id
-		result["title"] = title
-		result["description"] = description
-		result["type"] = type
-		result["displayName"] = display_name
-		result["displayPrice"] = display_price
-		result["currency"] = currency
-		result["price"] = price
-		result["debugDescription"] = debug_description
-		result["platform"] = platform
-		result["displayNameIOS"] = display_name_ios
-		result["isFamilyShareableIOS"] = is_family_shareable_ios
-		result["jsonRepresentationIOS"] = json_representation_ios
-		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
-			result["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
+		var dict = {}
+		dict["id"] = id
+		dict["title"] = title
+		dict["description"] = description
+		if PRODUCT_TYPE_VALUES.has(type):
+			dict["type"] = PRODUCT_TYPE_VALUES[type]
 		else:
-			result["subscriptionInfoIOS"] = subscription_info_ios
-		result["typeIOS"] = type_ios
-		return result
+			dict["type"] = type
+		dict["displayName"] = display_name
+		dict["displayPrice"] = display_price
+		dict["currency"] = currency
+		dict["price"] = price
+		dict["debugDescription"] = debug_description
+		if IAP_PLATFORM_VALUES.has(platform):
+			dict["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			dict["platform"] = platform
+		dict["displayNameIOS"] = display_name_ios
+		dict["isFamilyShareableIOS"] = is_family_shareable_ios
+		dict["jsonRepresentationIOS"] = json_representation_ios
+		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
+			dict["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
+		else:
+			dict["subscriptionInfoIOS"] = subscription_info_ios
+		if PRODUCT_TYPE_IOS_VALUES.has(type_ios):
+			dict["typeIOS"] = PRODUCT_TYPE_IOS_VALUES[type_ios]
+		else:
+			dict["typeIOS"] = type_ios
+		return dict
 
 class ProductSubscriptionAndroid:
 	var id: String
@@ -1074,18 +1101,24 @@ class ProductSubscriptionAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["id"] = id
-		result["title"] = title
-		result["description"] = description
-		result["type"] = type
-		result["displayName"] = display_name
-		result["displayPrice"] = display_price
-		result["currency"] = currency
-		result["price"] = price
-		result["debugDescription"] = debug_description
-		result["platform"] = platform
-		result["nameAndroid"] = name_android
+		var dict = {}
+		dict["id"] = id
+		dict["title"] = title
+		dict["description"] = description
+		if PRODUCT_TYPE_VALUES.has(type):
+			dict["type"] = PRODUCT_TYPE_VALUES[type]
+		else:
+			dict["type"] = type
+		dict["displayName"] = display_name
+		dict["displayPrice"] = display_price
+		dict["currency"] = currency
+		dict["price"] = price
+		dict["debugDescription"] = debug_description
+		if IAP_PLATFORM_VALUES.has(platform):
+			dict["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			dict["platform"] = platform
+		dict["nameAndroid"] = name_android
 		if one_time_purchase_offer_details_android != null:
 			var arr = []
 			for item in one_time_purchase_offer_details_android:
@@ -1093,9 +1126,9 @@ class ProductSubscriptionAndroid:
 					arr.append(item.to_dict())
 				else:
 					arr.append(item)
-			result["oneTimePurchaseOfferDetailsAndroid"] = arr
+			dict["oneTimePurchaseOfferDetailsAndroid"] = arr
 		else:
-			result["oneTimePurchaseOfferDetailsAndroid"] = null
+			dict["oneTimePurchaseOfferDetailsAndroid"] = null
 		if subscription_offer_details_android != null:
 			var arr = []
 			for item in subscription_offer_details_android:
@@ -1103,10 +1136,10 @@ class ProductSubscriptionAndroid:
 					arr.append(item.to_dict())
 				else:
 					arr.append(item)
-			result["subscriptionOfferDetailsAndroid"] = arr
+			dict["subscriptionOfferDetailsAndroid"] = arr
 		else:
-			result["subscriptionOfferDetailsAndroid"] = null
-		return result
+			dict["subscriptionOfferDetailsAndroid"] = null
+		return dict
 
 class ProductSubscriptionAndroidOfferDetails:
 	var base_plan_id: String
@@ -1133,16 +1166,16 @@ class ProductSubscriptionAndroidOfferDetails:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["basePlanId"] = base_plan_id
-		result["offerId"] = offer_id
-		result["offerToken"] = offer_token
-		result["offerTags"] = offer_tags
+		var dict = {}
+		dict["basePlanId"] = base_plan_id
+		dict["offerId"] = offer_id
+		dict["offerToken"] = offer_token
+		dict["offerTags"] = offer_tags
 		if pricing_phases != null and pricing_phases.has_method("to_dict"):
-			result["pricingPhases"] = pricing_phases.to_dict()
+			dict["pricingPhases"] = pricing_phases.to_dict()
 		else:
-			result["pricingPhases"] = pricing_phases
-		return result
+			dict["pricingPhases"] = pricing_phases
+		return dict
 
 class ProductSubscriptionIOS:
 	var id: String
@@ -1229,25 +1262,34 @@ class ProductSubscriptionIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["id"] = id
-		result["title"] = title
-		result["description"] = description
-		result["type"] = type
-		result["displayName"] = display_name
-		result["displayPrice"] = display_price
-		result["currency"] = currency
-		result["price"] = price
-		result["debugDescription"] = debug_description
-		result["platform"] = platform
-		result["displayNameIOS"] = display_name_ios
-		result["isFamilyShareableIOS"] = is_family_shareable_ios
-		result["jsonRepresentationIOS"] = json_representation_ios
-		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
-			result["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
+		var dict = {}
+		dict["id"] = id
+		dict["title"] = title
+		dict["description"] = description
+		if PRODUCT_TYPE_VALUES.has(type):
+			dict["type"] = PRODUCT_TYPE_VALUES[type]
 		else:
-			result["subscriptionInfoIOS"] = subscription_info_ios
-		result["typeIOS"] = type_ios
+			dict["type"] = type
+		dict["displayName"] = display_name
+		dict["displayPrice"] = display_price
+		dict["currency"] = currency
+		dict["price"] = price
+		dict["debugDescription"] = debug_description
+		if IAP_PLATFORM_VALUES.has(platform):
+			dict["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			dict["platform"] = platform
+		dict["displayNameIOS"] = display_name_ios
+		dict["isFamilyShareableIOS"] = is_family_shareable_ios
+		dict["jsonRepresentationIOS"] = json_representation_ios
+		if subscription_info_ios != null and subscription_info_ios.has_method("to_dict"):
+			dict["subscriptionInfoIOS"] = subscription_info_ios.to_dict()
+		else:
+			dict["subscriptionInfoIOS"] = subscription_info_ios
+		if PRODUCT_TYPE_IOS_VALUES.has(type_ios):
+			dict["typeIOS"] = PRODUCT_TYPE_IOS_VALUES[type_ios]
+		else:
+			dict["typeIOS"] = type_ios
 		if discounts_ios != null:
 			var arr = []
 			for item in discounts_ios:
@@ -1255,17 +1297,26 @@ class ProductSubscriptionIOS:
 					arr.append(item.to_dict())
 				else:
 					arr.append(item)
-			result["discountsIOS"] = arr
+			dict["discountsIOS"] = arr
 		else:
-			result["discountsIOS"] = null
-		result["introductoryPriceIOS"] = introductory_price_ios
-		result["introductoryPriceAsAmountIOS"] = introductory_price_as_amount_ios
-		result["introductoryPricePaymentModeIOS"] = introductory_price_payment_mode_ios
-		result["introductoryPriceNumberOfPeriodsIOS"] = introductory_price_number_of_periods_ios
-		result["introductoryPriceSubscriptionPeriodIOS"] = introductory_price_subscription_period_ios
-		result["subscriptionPeriodNumberIOS"] = subscription_period_number_ios
-		result["subscriptionPeriodUnitIOS"] = subscription_period_unit_ios
-		return result
+			dict["discountsIOS"] = null
+		dict["introductoryPriceIOS"] = introductory_price_ios
+		dict["introductoryPriceAsAmountIOS"] = introductory_price_as_amount_ios
+		if PAYMENT_MODE_IOS_VALUES.has(introductory_price_payment_mode_ios):
+			dict["introductoryPricePaymentModeIOS"] = PAYMENT_MODE_IOS_VALUES[introductory_price_payment_mode_ios]
+		else:
+			dict["introductoryPricePaymentModeIOS"] = introductory_price_payment_mode_ios
+		dict["introductoryPriceNumberOfPeriodsIOS"] = introductory_price_number_of_periods_ios
+		if SUBSCRIPTION_PERIOD_IOS_VALUES.has(introductory_price_subscription_period_ios):
+			dict["introductoryPriceSubscriptionPeriodIOS"] = SUBSCRIPTION_PERIOD_IOS_VALUES[introductory_price_subscription_period_ios]
+		else:
+			dict["introductoryPriceSubscriptionPeriodIOS"] = introductory_price_subscription_period_ios
+		dict["subscriptionPeriodNumberIOS"] = subscription_period_number_ios
+		if SUBSCRIPTION_PERIOD_IOS_VALUES.has(subscription_period_unit_ios):
+			dict["subscriptionPeriodUnitIOS"] = SUBSCRIPTION_PERIOD_IOS_VALUES[subscription_period_unit_ios]
+		else:
+			dict["subscriptionPeriodUnitIOS"] = subscription_period_unit_ios
+		return dict
 
 class PurchaseAndroid:
 	var id: String
@@ -1339,29 +1390,38 @@ class PurchaseAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["id"] = id
-		result["productId"] = product_id
-		result["ids"] = ids
-		result["transactionId"] = transaction_id
-		result["transactionDate"] = transaction_date
-		result["purchaseToken"] = purchase_token
-		result["store"] = store
-		result["platform"] = platform
-		result["quantity"] = quantity
-		result["purchaseState"] = purchase_state
-		result["isAutoRenewing"] = is_auto_renewing
-		result["currentPlanId"] = current_plan_id
-		result["dataAndroid"] = data_android
-		result["signatureAndroid"] = signature_android
-		result["autoRenewingAndroid"] = auto_renewing_android
-		result["isAcknowledgedAndroid"] = is_acknowledged_android
-		result["packageNameAndroid"] = package_name_android
-		result["developerPayloadAndroid"] = developer_payload_android
-		result["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
-		result["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
-		result["isSuspendedAndroid"] = is_suspended_android
-		return result
+		var dict = {}
+		dict["id"] = id
+		dict["productId"] = product_id
+		dict["ids"] = ids
+		dict["transactionId"] = transaction_id
+		dict["transactionDate"] = transaction_date
+		dict["purchaseToken"] = purchase_token
+		if IAP_STORE_VALUES.has(store):
+			dict["store"] = IAP_STORE_VALUES[store]
+		else:
+			dict["store"] = store
+		if IAP_PLATFORM_VALUES.has(platform):
+			dict["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			dict["platform"] = platform
+		dict["quantity"] = quantity
+		if PURCHASE_STATE_VALUES.has(purchase_state):
+			dict["purchaseState"] = PURCHASE_STATE_VALUES[purchase_state]
+		else:
+			dict["purchaseState"] = purchase_state
+		dict["isAutoRenewing"] = is_auto_renewing
+		dict["currentPlanId"] = current_plan_id
+		dict["dataAndroid"] = data_android
+		dict["signatureAndroid"] = signature_android
+		dict["autoRenewingAndroid"] = auto_renewing_android
+		dict["isAcknowledgedAndroid"] = is_acknowledged_android
+		dict["packageNameAndroid"] = package_name_android
+		dict["developerPayloadAndroid"] = developer_payload_android
+		dict["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
+		dict["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
+		dict["isSuspendedAndroid"] = is_suspended_android
+		return dict
 
 class PurchaseError:
 	var code: ErrorCode
@@ -1379,11 +1439,14 @@ class PurchaseError:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["code"] = code
-		result["message"] = message
-		result["productId"] = product_id
-		return result
+		var dict = {}
+		if ERROR_CODE_VALUES.has(code):
+			dict["code"] = ERROR_CODE_VALUES[code]
+		else:
+			dict["code"] = code
+		dict["message"] = message
+		dict["productId"] = product_id
+		return dict
 
 class PurchaseIOS:
 	var id: String
@@ -1501,48 +1564,57 @@ class PurchaseIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["id"] = id
-		result["productId"] = product_id
-		result["ids"] = ids
-		result["transactionDate"] = transaction_date
-		result["purchaseToken"] = purchase_token
-		result["store"] = store
-		result["platform"] = platform
-		result["quantity"] = quantity
-		result["purchaseState"] = purchase_state
-		result["isAutoRenewing"] = is_auto_renewing
-		result["currentPlanId"] = current_plan_id
-		result["transactionId"] = transaction_id
-		result["quantityIOS"] = quantity_ios
-		result["originalTransactionDateIOS"] = original_transaction_date_ios
-		result["originalTransactionIdentifierIOS"] = original_transaction_identifier_ios
-		result["appAccountToken"] = app_account_token
-		result["expirationDateIOS"] = expiration_date_ios
-		result["webOrderLineItemIdIOS"] = web_order_line_item_id_ios
-		result["environmentIOS"] = environment_ios
-		result["storefrontCountryCodeIOS"] = storefront_country_code_ios
-		result["appBundleIdIOS"] = app_bundle_id_ios
-		result["subscriptionGroupIdIOS"] = subscription_group_id_ios
-		result["isUpgradedIOS"] = is_upgraded_ios
-		result["ownershipTypeIOS"] = ownership_type_ios
-		result["reasonIOS"] = reason_ios
-		result["reasonStringRepresentationIOS"] = reason_string_representation_ios
-		result["transactionReasonIOS"] = transaction_reason_ios
-		result["revocationDateIOS"] = revocation_date_ios
-		result["revocationReasonIOS"] = revocation_reason_ios
+		var dict = {}
+		dict["id"] = id
+		dict["productId"] = product_id
+		dict["ids"] = ids
+		dict["transactionDate"] = transaction_date
+		dict["purchaseToken"] = purchase_token
+		if IAP_STORE_VALUES.has(store):
+			dict["store"] = IAP_STORE_VALUES[store]
+		else:
+			dict["store"] = store
+		if IAP_PLATFORM_VALUES.has(platform):
+			dict["platform"] = IAP_PLATFORM_VALUES[platform]
+		else:
+			dict["platform"] = platform
+		dict["quantity"] = quantity
+		if PURCHASE_STATE_VALUES.has(purchase_state):
+			dict["purchaseState"] = PURCHASE_STATE_VALUES[purchase_state]
+		else:
+			dict["purchaseState"] = purchase_state
+		dict["isAutoRenewing"] = is_auto_renewing
+		dict["currentPlanId"] = current_plan_id
+		dict["transactionId"] = transaction_id
+		dict["quantityIOS"] = quantity_ios
+		dict["originalTransactionDateIOS"] = original_transaction_date_ios
+		dict["originalTransactionIdentifierIOS"] = original_transaction_identifier_ios
+		dict["appAccountToken"] = app_account_token
+		dict["expirationDateIOS"] = expiration_date_ios
+		dict["webOrderLineItemIdIOS"] = web_order_line_item_id_ios
+		dict["environmentIOS"] = environment_ios
+		dict["storefrontCountryCodeIOS"] = storefront_country_code_ios
+		dict["appBundleIdIOS"] = app_bundle_id_ios
+		dict["subscriptionGroupIdIOS"] = subscription_group_id_ios
+		dict["isUpgradedIOS"] = is_upgraded_ios
+		dict["ownershipTypeIOS"] = ownership_type_ios
+		dict["reasonIOS"] = reason_ios
+		dict["reasonStringRepresentationIOS"] = reason_string_representation_ios
+		dict["transactionReasonIOS"] = transaction_reason_ios
+		dict["revocationDateIOS"] = revocation_date_ios
+		dict["revocationReasonIOS"] = revocation_reason_ios
 		if offer_ios != null and offer_ios.has_method("to_dict"):
-			result["offerIOS"] = offer_ios.to_dict()
+			dict["offerIOS"] = offer_ios.to_dict()
 		else:
-			result["offerIOS"] = offer_ios
-		result["currencyCodeIOS"] = currency_code_ios
-		result["currencySymbolIOS"] = currency_symbol_ios
-		result["countryCodeIOS"] = country_code_ios
+			dict["offerIOS"] = offer_ios
+		dict["currencyCodeIOS"] = currency_code_ios
+		dict["currencySymbolIOS"] = currency_symbol_ios
+		dict["countryCodeIOS"] = country_code_ios
 		if renewal_info_ios != null and renewal_info_ios.has_method("to_dict"):
-			result["renewalInfoIOS"] = renewal_info_ios.to_dict()
+			dict["renewalInfoIOS"] = renewal_info_ios.to_dict()
 		else:
-			result["renewalInfoIOS"] = renewal_info_ios
-		return result
+			dict["renewalInfoIOS"] = renewal_info_ios
+		return dict
 
 class PurchaseOfferIOS:
 	var id: String
@@ -1560,11 +1632,11 @@ class PurchaseOfferIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["id"] = id
-		result["type"] = type
-		result["paymentMode"] = payment_mode
-		return result
+		var dict = {}
+		dict["id"] = id
+		dict["type"] = type
+		dict["paymentMode"] = payment_mode
+		return dict
 
 class RefundResultIOS:
 	var status: String
@@ -1579,10 +1651,10 @@ class RefundResultIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["status"] = status
-		result["message"] = message
-		return result
+		var dict = {}
+		dict["status"] = status
+		dict["message"] = message
+		return dict
 
 ## Subscription renewal information from Product.SubscriptionInfo.RenewalInfo https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
 class RenewalInfoIOS:
@@ -1633,19 +1705,19 @@ class RenewalInfoIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["jsonRepresentation"] = json_representation
-		result["willAutoRenew"] = will_auto_renew
-		result["autoRenewPreference"] = auto_renew_preference
-		result["expirationReason"] = expiration_reason
-		result["gracePeriodExpirationDate"] = grace_period_expiration_date
-		result["isInBillingRetry"] = is_in_billing_retry
-		result["pendingUpgradeProductId"] = pending_upgrade_product_id
-		result["priceIncreaseStatus"] = price_increase_status
-		result["renewalDate"] = renewal_date
-		result["renewalOfferId"] = renewal_offer_id
-		result["renewalOfferType"] = renewal_offer_type
-		return result
+		var dict = {}
+		dict["jsonRepresentation"] = json_representation
+		dict["willAutoRenew"] = will_auto_renew
+		dict["autoRenewPreference"] = auto_renew_preference
+		dict["expirationReason"] = expiration_reason
+		dict["gracePeriodExpirationDate"] = grace_period_expiration_date
+		dict["isInBillingRetry"] = is_in_billing_retry
+		dict["pendingUpgradeProductId"] = pending_upgrade_product_id
+		dict["priceIncreaseStatus"] = price_increase_status
+		dict["renewalDate"] = renewal_date
+		dict["renewalOfferId"] = renewal_offer_id
+		dict["renewalOfferType"] = renewal_offer_type
+		return dict
 
 ## Rental details for one-time purchase products that can be rented (Android) Available in Google Play Billing Library 7.0+
 class RentalDetailsAndroid:
@@ -1663,10 +1735,10 @@ class RentalDetailsAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["rentalPeriod"] = rental_period
-		result["rentalExpirationPeriod"] = rental_expiration_period
-		return result
+		var dict = {}
+		dict["rentalPeriod"] = rental_period
+		dict["rentalExpirationPeriod"] = rental_expiration_period
+		return dict
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: IapStore
@@ -1686,11 +1758,17 @@ class RequestVerifyPurchaseWithIapkitResult:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["store"] = store
-		result["isValid"] = is_valid
-		result["state"] = state
-		return result
+		var dict = {}
+		if IAP_STORE_VALUES.has(store):
+			dict["store"] = IAP_STORE_VALUES[store]
+		else:
+			dict["store"] = store
+		dict["isValid"] = is_valid
+		if IAPKIT_PURCHASE_STATE_VALUES.has(state):
+			dict["state"] = IAPKIT_PURCHASE_STATE_VALUES[state]
+		else:
+			dict["state"] = state
+		return dict
 
 class SubscriptionInfoIOS:
 	var introductory_offer: SubscriptionOfferIOS
@@ -1723,11 +1801,11 @@ class SubscriptionInfoIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if introductory_offer != null and introductory_offer.has_method("to_dict"):
-			result["introductoryOffer"] = introductory_offer.to_dict()
+			dict["introductoryOffer"] = introductory_offer.to_dict()
 		else:
-			result["introductoryOffer"] = introductory_offer
+			dict["introductoryOffer"] = introductory_offer
 		if promotional_offers != null:
 			var arr = []
 			for item in promotional_offers:
@@ -1735,15 +1813,15 @@ class SubscriptionInfoIOS:
 					arr.append(item.to_dict())
 				else:
 					arr.append(item)
-			result["promotionalOffers"] = arr
+			dict["promotionalOffers"] = arr
 		else:
-			result["promotionalOffers"] = null
-		result["subscriptionGroupId"] = subscription_group_id
+			dict["promotionalOffers"] = null
+		dict["subscriptionGroupId"] = subscription_group_id
 		if subscription_period != null and subscription_period.has_method("to_dict"):
-			result["subscriptionPeriod"] = subscription_period.to_dict()
+			dict["subscriptionPeriod"] = subscription_period.to_dict()
 		else:
-			result["subscriptionPeriod"] = subscription_period
-		return result
+			dict["subscriptionPeriod"] = subscription_period
+		return dict
 
 class SubscriptionOfferIOS:
 	var display_price: String
@@ -1776,18 +1854,24 @@ class SubscriptionOfferIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["displayPrice"] = display_price
-		result["id"] = id
-		result["paymentMode"] = payment_mode
-		if period != null and period.has_method("to_dict"):
-			result["period"] = period.to_dict()
+		var dict = {}
+		dict["displayPrice"] = display_price
+		dict["id"] = id
+		if PAYMENT_MODE_IOS_VALUES.has(payment_mode):
+			dict["paymentMode"] = PAYMENT_MODE_IOS_VALUES[payment_mode]
 		else:
-			result["period"] = period
-		result["periodCount"] = period_count
-		result["price"] = price
-		result["type"] = type
-		return result
+			dict["paymentMode"] = payment_mode
+		if period != null and period.has_method("to_dict"):
+			dict["period"] = period.to_dict()
+		else:
+			dict["period"] = period
+		dict["periodCount"] = period_count
+		dict["price"] = price
+		if SUBSCRIPTION_OFFER_TYPE_IOS_VALUES.has(type):
+			dict["type"] = SUBSCRIPTION_OFFER_TYPE_IOS_VALUES[type]
+		else:
+			dict["type"] = type
+		return dict
 
 class SubscriptionPeriodValueIOS:
 	var unit: SubscriptionPeriodIOS
@@ -1802,10 +1886,13 @@ class SubscriptionPeriodValueIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["unit"] = unit
-		result["value"] = value
-		return result
+		var dict = {}
+		if SUBSCRIPTION_PERIOD_IOS_VALUES.has(unit):
+			dict["unit"] = SUBSCRIPTION_PERIOD_IOS_VALUES[unit]
+		else:
+			dict["unit"] = unit
+		dict["value"] = value
+		return dict
 
 class SubscriptionStatusIOS:
 	var state: String
@@ -1823,13 +1910,13 @@ class SubscriptionStatusIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["state"] = state
+		var dict = {}
+		dict["state"] = state
 		if renewal_info != null and renewal_info.has_method("to_dict"):
-			result["renewalInfo"] = renewal_info.to_dict()
+			dict["renewalInfo"] = renewal_info.to_dict()
 		else:
-			result["renewalInfo"] = renewal_info
-		return result
+			dict["renewalInfo"] = renewal_info
+		return dict
 
 ## User Choice Billing event details (Android) Fired when a user selects alternative billing in the User Choice Billing dialog
 class UserChoiceBillingDetails:
@@ -1847,10 +1934,10 @@ class UserChoiceBillingDetails:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["externalTransactionToken"] = external_transaction_token
-		result["products"] = products
-		return result
+		var dict = {}
+		dict["externalTransactionToken"] = external_transaction_token
+		dict["products"] = products
+		return dict
 
 ## Valid time window for when an offer is available (Android) Available in Google Play Billing Library 7.0+
 class ValidTimeWindowAndroid:
@@ -1868,10 +1955,10 @@ class ValidTimeWindowAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["startTimeMillis"] = start_time_millis
-		result["endTimeMillis"] = end_time_millis
-		return result
+		var dict = {}
+		dict["startTimeMillis"] = start_time_millis
+		dict["endTimeMillis"] = end_time_millis
+		return dict
 
 class VerifyPurchaseResultAndroid:
 	var auto_renewing: bool
@@ -1934,26 +2021,26 @@ class VerifyPurchaseResultAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["autoRenewing"] = auto_renewing
-		result["betaProduct"] = beta_product
-		result["cancelDate"] = cancel_date
-		result["cancelReason"] = cancel_reason
-		result["deferredDate"] = deferred_date
-		result["deferredSku"] = deferred_sku
-		result["freeTrialEndDate"] = free_trial_end_date
-		result["gracePeriodEndDate"] = grace_period_end_date
-		result["parentProductId"] = parent_product_id
-		result["productId"] = product_id
-		result["productType"] = product_type
-		result["purchaseDate"] = purchase_date
-		result["quantity"] = quantity
-		result["receiptId"] = receipt_id
-		result["renewalDate"] = renewal_date
-		result["term"] = term
-		result["termSku"] = term_sku
-		result["testTransaction"] = test_transaction
-		return result
+		var dict = {}
+		dict["autoRenewing"] = auto_renewing
+		dict["betaProduct"] = beta_product
+		dict["cancelDate"] = cancel_date
+		dict["cancelReason"] = cancel_reason
+		dict["deferredDate"] = deferred_date
+		dict["deferredSku"] = deferred_sku
+		dict["freeTrialEndDate"] = free_trial_end_date
+		dict["gracePeriodEndDate"] = grace_period_end_date
+		dict["parentProductId"] = parent_product_id
+		dict["productId"] = product_id
+		dict["productType"] = product_type
+		dict["purchaseDate"] = purchase_date
+		dict["quantity"] = quantity
+		dict["receiptId"] = receipt_id
+		dict["renewalDate"] = renewal_date
+		dict["term"] = term
+		dict["termSku"] = term_sku
+		dict["testTransaction"] = test_transaction
+		return dict
 
 ## Result from Meta Horizon verify_entitlement API. Returns verification status and grant time for the entitlement.
 class VerifyPurchaseResultHorizon:
@@ -1971,10 +2058,10 @@ class VerifyPurchaseResultHorizon:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["success"] = success
-		result["grantTime"] = grant_time
-		return result
+		var dict = {}
+		dict["success"] = success
+		dict["grantTime"] = grant_time
+		return dict
 
 class VerifyPurchaseResultIOS:
 	## Whether the receipt is valid
@@ -1999,12 +2086,12 @@ class VerifyPurchaseResultIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["isValid"] = is_valid
-		result["receiptData"] = receipt_data
-		result["jwsRepresentation"] = jws_representation
-		result["latestTransaction"] = latest_transaction
-		return result
+		var dict = {}
+		dict["isValid"] = is_valid
+		dict["receiptData"] = receipt_data
+		dict["jwsRepresentation"] = jws_representation
+		dict["latestTransaction"] = latest_transaction
+		return dict
 
 class VerifyPurchaseWithProviderError:
 	var message: String
@@ -2019,10 +2106,10 @@ class VerifyPurchaseWithProviderError:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["message"] = message
-		result["code"] = code
-		return result
+		var dict = {}
+		dict["message"] = message
+		dict["code"] = code
+		return dict
 
 class VerifyPurchaseWithProviderResult:
 	var provider: PurchaseVerificationProvider
@@ -2051,12 +2138,15 @@ class VerifyPurchaseWithProviderResult:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["provider"] = provider
-		if iapkit != null and iapkit.has_method("to_dict"):
-			result["iapkit"] = iapkit.to_dict()
+		var dict = {}
+		if PURCHASE_VERIFICATION_PROVIDER_VALUES.has(provider):
+			dict["provider"] = PURCHASE_VERIFICATION_PROVIDER_VALUES[provider]
 		else:
-			result["iapkit"] = iapkit
+			dict["provider"] = provider
+		if iapkit != null and iapkit.has_method("to_dict"):
+			dict["iapkit"] = iapkit.to_dict()
+		else:
+			dict["iapkit"] = iapkit
 		if errors != null:
 			var arr = []
 			for item in errors:
@@ -2064,10 +2154,10 @@ class VerifyPurchaseWithProviderResult:
 					arr.append(item.to_dict())
 				else:
 					arr.append(item)
-			result["errors"] = arr
+			dict["errors"] = arr
 		else:
-			result["errors"] = null
-		return result
+			dict["errors"] = null
+		return dict
 
 class VoidResult:
 	var success: bool
@@ -2079,9 +2169,9 @@ class VoidResult:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
-		result["success"] = success
-		return result
+		var dict = {}
+		dict["success"] = success
+		return dict
 
 # ============================================================================
 # Input Types
@@ -2102,12 +2192,12 @@ class AndroidSubscriptionOfferInput:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if sku != null:
-			result["sku"] = sku
+			dict["sku"] = sku
 		if offer_token != null:
-			result["offerToken"] = offer_token
-		return result
+			dict["offerToken"] = offer_token
+		return dict
 
 class DeepLinkOptions:
 	## Android SKU to open (required on Android)
@@ -2124,12 +2214,12 @@ class DeepLinkOptions:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if sku_android != null:
-			result["skuAndroid"] = sku_android
+			dict["skuAndroid"] = sku_android
 		if package_name_android != null:
-			result["packageNameAndroid"] = package_name_android
-		return result
+			dict["packageNameAndroid"] = package_name_android
+		return dict
 
 ## Parameters for developer billing option in purchase flow (Android) Used with BillingFlowParams to enable external payments flow Available in Google Play Billing Library 8.3.0+
 class DeveloperBillingOptionParamsAndroid:
@@ -2151,14 +2241,20 @@ class DeveloperBillingOptionParamsAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if billing_program != null:
-			result["billingProgram"] = billing_program
+			if BILLING_PROGRAM_ANDROID_VALUES.has(billing_program):
+				dict["billingProgram"] = BILLING_PROGRAM_ANDROID_VALUES[billing_program]
+			else:
+				dict["billingProgram"] = billing_program
 		if link_uri != null:
-			result["linkUri"] = link_uri
+			dict["linkUri"] = link_uri
 		if launch_mode != null:
-			result["launchMode"] = launch_mode
-		return result
+			if DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_VALUES.has(launch_mode):
+				dict["launchMode"] = DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_VALUES[launch_mode]
+			else:
+				dict["launchMode"] = launch_mode
+		return dict
 
 class DiscountOfferInputIOS:
 	## Discount identifier
@@ -2187,18 +2283,18 @@ class DiscountOfferInputIOS:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if identifier != null:
-			result["identifier"] = identifier
+			dict["identifier"] = identifier
 		if key_identifier != null:
-			result["keyIdentifier"] = key_identifier
+			dict["keyIdentifier"] = key_identifier
 		if nonce != null:
-			result["nonce"] = nonce
+			dict["nonce"] = nonce
 		if signature != null:
-			result["signature"] = signature
+			dict["signature"] = signature
 		if timestamp != null:
-			result["timestamp"] = timestamp
-		return result
+			dict["timestamp"] = timestamp
+		return dict
 
 ## Connection initialization configuration
 class InitConnectionConfig:
@@ -2216,12 +2312,18 @@ class InitConnectionConfig:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if alternative_billing_mode_android != null:
-			result["alternativeBillingModeAndroid"] = alternative_billing_mode_android
+			if ALTERNATIVE_BILLING_MODE_ANDROID_VALUES.has(alternative_billing_mode_android):
+				dict["alternativeBillingModeAndroid"] = ALTERNATIVE_BILLING_MODE_ANDROID_VALUES[alternative_billing_mode_android]
+			else:
+				dict["alternativeBillingModeAndroid"] = alternative_billing_mode_android
 		if enable_billing_program_android != null:
-			result["enableBillingProgramAndroid"] = enable_billing_program_android
-		return result
+			if BILLING_PROGRAM_ANDROID_VALUES.has(enable_billing_program_android):
+				dict["enableBillingProgramAndroid"] = BILLING_PROGRAM_ANDROID_VALUES[enable_billing_program_android]
+			else:
+				dict["enableBillingProgramAndroid"] = enable_billing_program_android
+		return dict
 
 ## Parameters for launching an external link (Android) Used with launchExternalLink to initiate external offer or app install flows Available in Google Play Billing Library 8.2.0+
 class LaunchExternalLinkParamsAndroid:
@@ -2247,16 +2349,25 @@ class LaunchExternalLinkParamsAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if billing_program != null:
-			result["billingProgram"] = billing_program
+			if BILLING_PROGRAM_ANDROID_VALUES.has(billing_program):
+				dict["billingProgram"] = BILLING_PROGRAM_ANDROID_VALUES[billing_program]
+			else:
+				dict["billingProgram"] = billing_program
 		if launch_mode != null:
-			result["launchMode"] = launch_mode
+			if EXTERNAL_LINK_LAUNCH_MODE_ANDROID_VALUES.has(launch_mode):
+				dict["launchMode"] = EXTERNAL_LINK_LAUNCH_MODE_ANDROID_VALUES[launch_mode]
+			else:
+				dict["launchMode"] = launch_mode
 		if link_type != null:
-			result["linkType"] = link_type
+			if EXTERNAL_LINK_TYPE_ANDROID_VALUES.has(link_type):
+				dict["linkType"] = EXTERNAL_LINK_TYPE_ANDROID_VALUES[link_type]
+			else:
+				dict["linkType"] = link_type
 		if link_uri != null:
-			result["linkUri"] = link_uri
-		return result
+			dict["linkUri"] = link_uri
+		return dict
 
 class ProductRequest:
 	var skus: Array[String]
@@ -2271,12 +2382,15 @@ class ProductRequest:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if skus != null:
-			result["skus"] = skus
+			dict["skus"] = skus
 		if type != null:
-			result["type"] = type
-		return result
+			if PRODUCT_QUERY_TYPE_VALUES.has(type):
+				dict["type"] = PRODUCT_QUERY_TYPE_VALUES[type]
+			else:
+				dict["type"] = type
+		return dict
 
 class PurchaseInput:
 	var id: String
@@ -2317,28 +2431,37 @@ class PurchaseInput:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if id != null:
-			result["id"] = id
+			dict["id"] = id
 		if product_id != null:
-			result["productId"] = product_id
+			dict["productId"] = product_id
 		if ids != null:
-			result["ids"] = ids
+			dict["ids"] = ids
 		if transaction_date != null:
-			result["transactionDate"] = transaction_date
+			dict["transactionDate"] = transaction_date
 		if purchase_token != null:
-			result["purchaseToken"] = purchase_token
+			dict["purchaseToken"] = purchase_token
 		if store != null:
-			result["store"] = store
+			if IAP_STORE_VALUES.has(store):
+				dict["store"] = IAP_STORE_VALUES[store]
+			else:
+				dict["store"] = store
 		if platform != null:
-			result["platform"] = platform
+			if IAP_PLATFORM_VALUES.has(platform):
+				dict["platform"] = IAP_PLATFORM_VALUES[platform]
+			else:
+				dict["platform"] = platform
 		if quantity != null:
-			result["quantity"] = quantity
+			dict["quantity"] = quantity
 		if purchase_state != null:
-			result["purchaseState"] = purchase_state
+			if PURCHASE_STATE_VALUES.has(purchase_state):
+				dict["purchaseState"] = PURCHASE_STATE_VALUES[purchase_state]
+			else:
+				dict["purchaseState"] = purchase_state
 		if is_auto_renewing != null:
-			result["isAutoRenewing"] = is_auto_renewing
-		return result
+			dict["isAutoRenewing"] = is_auto_renewing
+		return dict
 
 class PurchaseOptions:
 	## Also emit results through the iOS event listeners
@@ -2355,12 +2478,12 @@ class PurchaseOptions:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if also_publish_to_event_listener_ios != null:
-			result["alsoPublishToEventListenerIOS"] = also_publish_to_event_listener_ios
+			dict["alsoPublishToEventListenerIOS"] = also_publish_to_event_listener_ios
 		if only_include_active_items_ios != null:
-			result["onlyIncludeActiveItemsIOS"] = only_include_active_items_ios
-		return result
+			dict["onlyIncludeActiveItemsIOS"] = only_include_active_items_ios
+		return dict
 
 class RequestPurchaseAndroidProps:
 	## List of product SKUs
@@ -2392,21 +2515,21 @@ class RequestPurchaseAndroidProps:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if skus != null:
-			result["skus"] = skus
+			dict["skus"] = skus
 		if obfuscated_account_id_android != null:
-			result["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
+			dict["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
 		if obfuscated_profile_id_android != null:
-			result["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
+			dict["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
 		if is_offer_personalized != null:
-			result["isOfferPersonalized"] = is_offer_personalized
+			dict["isOfferPersonalized"] = is_offer_personalized
 		if developer_billing_option != null:
 			if developer_billing_option.has_method("to_dict"):
-				result["developerBillingOption"] = developer_billing_option.to_dict()
+				dict["developerBillingOption"] = developer_billing_option.to_dict()
 			else:
-				result["developerBillingOption"] = developer_billing_option
-		return result
+				dict["developerBillingOption"] = developer_billing_option
+		return dict
 
 class RequestPurchaseIosProps:
 	## Product SKU
@@ -2442,23 +2565,23 @@ class RequestPurchaseIosProps:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if sku != null:
-			result["sku"] = sku
+			dict["sku"] = sku
 		if and_dangerously_finish_transaction_automatically != null:
-			result["andDangerouslyFinishTransactionAutomatically"] = and_dangerously_finish_transaction_automatically
+			dict["andDangerouslyFinishTransactionAutomatically"] = and_dangerously_finish_transaction_automatically
 		if app_account_token != null:
-			result["appAccountToken"] = app_account_token
+			dict["appAccountToken"] = app_account_token
 		if quantity != null:
-			result["quantity"] = quantity
+			dict["quantity"] = quantity
 		if with_offer != null:
 			if with_offer.has_method("to_dict"):
-				result["withOffer"] = with_offer.to_dict()
+				dict["withOffer"] = with_offer.to_dict()
 			else:
-				result["withOffer"] = with_offer
+				dict["withOffer"] = with_offer
 		if advanced_commerce_data != null:
-			result["advancedCommerceData"] = advanced_commerce_data
-		return result
+			dict["advancedCommerceData"] = advanced_commerce_data
+		return dict
 
 class RequestPurchaseProps:
 	## Per-platform purchase request props
@@ -2489,22 +2612,25 @@ class RequestPurchaseProps:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if request != null:
 			if request.has_method("to_dict"):
-				result["requestPurchase"] = request.to_dict()
+				dict["requestPurchase"] = request.to_dict()
 			else:
-				result["requestPurchase"] = request
+				dict["requestPurchase"] = request
 		if request_subscription != null:
 			if request_subscription.has_method("to_dict"):
-				result["requestSubscription"] = request_subscription.to_dict()
+				dict["requestSubscription"] = request_subscription.to_dict()
 			else:
-				result["requestSubscription"] = request_subscription
+				dict["requestSubscription"] = request_subscription
 		if type != null:
-			result["type"] = type
+			if PRODUCT_QUERY_TYPE_VALUES.has(type):
+				dict["type"] = PRODUCT_QUERY_TYPE_VALUES[type]
+			else:
+				dict["type"] = type
 		if use_alternative_billing != null:
-			result["useAlternativeBilling"] = use_alternative_billing
-		return result
+			dict["useAlternativeBilling"] = use_alternative_billing
+		return dict
 
 ## Platform-specific purchase request parameters.  Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, or Horizon when built with horizon flavor   (determined at build time, not runtime)
 class RequestPurchasePropsByPlatforms:
@@ -2542,28 +2668,28 @@ class RequestPurchasePropsByPlatforms:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if apple != null:
 			if apple.has_method("to_dict"):
-				result["apple"] = apple.to_dict()
+				dict["apple"] = apple.to_dict()
 			else:
-				result["apple"] = apple
+				dict["apple"] = apple
 		if google != null:
 			if google.has_method("to_dict"):
-				result["google"] = google.to_dict()
+				dict["google"] = google.to_dict()
 			else:
-				result["google"] = google
+				dict["google"] = google
 		if ios != null:
 			if ios.has_method("to_dict"):
-				result["ios"] = ios.to_dict()
+				dict["ios"] = ios.to_dict()
 			else:
-				result["ios"] = ios
+				dict["ios"] = ios
 		if android != null:
 			if android.has_method("to_dict"):
-				result["android"] = android.to_dict()
+				dict["android"] = android.to_dict()
 			else:
-				result["android"] = android
-		return result
+				dict["android"] = android
+		return dict
 
 class RequestSubscriptionAndroidProps:
 	## List of subscription SKUs
@@ -2620,19 +2746,19 @@ class RequestSubscriptionAndroidProps:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if skus != null:
-			result["skus"] = skus
+			dict["skus"] = skus
 		if obfuscated_account_id_android != null:
-			result["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
+			dict["obfuscatedAccountIdAndroid"] = obfuscated_account_id_android
 		if obfuscated_profile_id_android != null:
-			result["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
+			dict["obfuscatedProfileIdAndroid"] = obfuscated_profile_id_android
 		if is_offer_personalized != null:
-			result["isOfferPersonalized"] = is_offer_personalized
+			dict["isOfferPersonalized"] = is_offer_personalized
 		if purchase_token_android != null:
-			result["purchaseTokenAndroid"] = purchase_token_android
+			dict["purchaseTokenAndroid"] = purchase_token_android
 		if replacement_mode_android != null:
-			result["replacementModeAndroid"] = replacement_mode_android
+			dict["replacementModeAndroid"] = replacement_mode_android
 		if subscription_offers != null:
 			var arr = []
 			for item in subscription_offers:
@@ -2640,18 +2766,18 @@ class RequestSubscriptionAndroidProps:
 					arr.append(item.to_dict())
 				else:
 					arr.append(item)
-			result["subscriptionOffers"] = arr
+			dict["subscriptionOffers"] = arr
 		if subscription_product_replacement_params != null:
 			if subscription_product_replacement_params.has_method("to_dict"):
-				result["subscriptionProductReplacementParams"] = subscription_product_replacement_params.to_dict()
+				dict["subscriptionProductReplacementParams"] = subscription_product_replacement_params.to_dict()
 			else:
-				result["subscriptionProductReplacementParams"] = subscription_product_replacement_params
+				dict["subscriptionProductReplacementParams"] = subscription_product_replacement_params
 		if developer_billing_option != null:
 			if developer_billing_option.has_method("to_dict"):
-				result["developerBillingOption"] = developer_billing_option.to_dict()
+				dict["developerBillingOption"] = developer_billing_option.to_dict()
 			else:
-				result["developerBillingOption"] = developer_billing_option
-		return result
+				dict["developerBillingOption"] = developer_billing_option
+		return dict
 
 class RequestSubscriptionIosProps:
 	var sku: String
@@ -2682,23 +2808,23 @@ class RequestSubscriptionIosProps:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if sku != null:
-			result["sku"] = sku
+			dict["sku"] = sku
 		if and_dangerously_finish_transaction_automatically != null:
-			result["andDangerouslyFinishTransactionAutomatically"] = and_dangerously_finish_transaction_automatically
+			dict["andDangerouslyFinishTransactionAutomatically"] = and_dangerously_finish_transaction_automatically
 		if app_account_token != null:
-			result["appAccountToken"] = app_account_token
+			dict["appAccountToken"] = app_account_token
 		if quantity != null:
-			result["quantity"] = quantity
+			dict["quantity"] = quantity
 		if with_offer != null:
 			if with_offer.has_method("to_dict"):
-				result["withOffer"] = with_offer.to_dict()
+				dict["withOffer"] = with_offer.to_dict()
 			else:
-				result["withOffer"] = with_offer
+				dict["withOffer"] = with_offer
 		if advanced_commerce_data != null:
-			result["advancedCommerceData"] = advanced_commerce_data
-		return result
+			dict["advancedCommerceData"] = advanced_commerce_data
+		return dict
 
 ## Platform-specific subscription request parameters.  Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, or Horizon when built with horizon flavor   (determined at build time, not runtime)
 class RequestSubscriptionPropsByPlatforms:
@@ -2736,28 +2862,28 @@ class RequestSubscriptionPropsByPlatforms:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if apple != null:
 			if apple.has_method("to_dict"):
-				result["apple"] = apple.to_dict()
+				dict["apple"] = apple.to_dict()
 			else:
-				result["apple"] = apple
+				dict["apple"] = apple
 		if google != null:
 			if google.has_method("to_dict"):
-				result["google"] = google.to_dict()
+				dict["google"] = google.to_dict()
 			else:
-				result["google"] = google
+				dict["google"] = google
 		if ios != null:
 			if ios.has_method("to_dict"):
-				result["ios"] = ios.to_dict()
+				dict["ios"] = ios.to_dict()
 			else:
-				result["ios"] = ios
+				dict["ios"] = ios
 		if android != null:
 			if android.has_method("to_dict"):
-				result["android"] = android.to_dict()
+				dict["android"] = android.to_dict()
 			else:
-				result["android"] = android
-		return result
+				dict["android"] = android
+		return dict
 
 class RequestVerifyPurchaseWithIapkitAppleProps:
 	## The JWS token returned with the purchase response.
@@ -2770,10 +2896,10 @@ class RequestVerifyPurchaseWithIapkitAppleProps:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if jws != null:
-			result["jws"] = jws
-		return result
+			dict["jws"] = jws
+		return dict
 
 class RequestVerifyPurchaseWithIapkitGoogleProps:
 	## The token provided to the user's device when the product or subscription was purchased.
@@ -2786,10 +2912,10 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if purchase_token != null:
-			result["purchaseToken"] = purchase_token
-		return result
+			dict["purchaseToken"] = purchase_token
+		return dict
 
 ## Platform-specific verification parameters for IAPKit.  - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token)
 class RequestVerifyPurchaseWithIapkitProps:
@@ -2817,20 +2943,20 @@ class RequestVerifyPurchaseWithIapkitProps:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if api_key != null:
-			result["apiKey"] = api_key
+			dict["apiKey"] = api_key
 		if apple != null:
 			if apple.has_method("to_dict"):
-				result["apple"] = apple.to_dict()
+				dict["apple"] = apple.to_dict()
 			else:
-				result["apple"] = apple
+				dict["apple"] = apple
 		if google != null:
 			if google.has_method("to_dict"):
-				result["google"] = google.to_dict()
+				dict["google"] = google.to_dict()
 			else:
-				result["google"] = google
-		return result
+				dict["google"] = google
+		return dict
 
 ## Product-level subscription replacement parameters (Android) Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams Available in Google Play Billing Library 8.1.0+
 class SubscriptionProductReplacementParamsAndroid:
@@ -2848,12 +2974,15 @@ class SubscriptionProductReplacementParamsAndroid:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if old_product_id != null:
-			result["oldProductId"] = old_product_id
+			dict["oldProductId"] = old_product_id
 		if replacement_mode != null:
-			result["replacementMode"] = replacement_mode
-		return result
+			if SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES.has(replacement_mode):
+				dict["replacementMode"] = SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES[replacement_mode]
+			else:
+				dict["replacementMode"] = replacement_mode
+		return dict
 
 ## Apple App Store verification parameters. Used for server-side receipt validation via App Store Server API.
 class VerifyPurchaseAppleOptions:
@@ -2867,10 +2996,10 @@ class VerifyPurchaseAppleOptions:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if sku != null:
-			result["sku"] = sku
-		return result
+			dict["sku"] = sku
+		return dict
 
 ## Google Play Store verification parameters. Used for server-side receipt validation via Google Play Developer API.  ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
 class VerifyPurchaseGoogleOptions:
@@ -2900,18 +3029,18 @@ class VerifyPurchaseGoogleOptions:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if sku != null:
-			result["sku"] = sku
+			dict["sku"] = sku
 		if package_name != null:
-			result["packageName"] = package_name
+			dict["packageName"] = package_name
 		if purchase_token != null:
-			result["purchaseToken"] = purchase_token
+			dict["purchaseToken"] = purchase_token
 		if access_token != null:
-			result["accessToken"] = access_token
+			dict["accessToken"] = access_token
 		if is_sub != null:
-			result["isSub"] = is_sub
-		return result
+			dict["isSub"] = is_sub
+		return dict
 
 ## Meta Horizon (Quest) verification parameters. Used for server-side entitlement verification via Meta's S2S API. POST https://graph.oculus.com/$APP_ID/verify_entitlement  ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
 class VerifyPurchaseHorizonOptions:
@@ -2933,14 +3062,14 @@ class VerifyPurchaseHorizonOptions:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if sku != null:
-			result["sku"] = sku
+			dict["sku"] = sku
 		if user_id != null:
-			result["userId"] = user_id
+			dict["userId"] = user_id
 		if access_token != null:
-			result["accessToken"] = access_token
-		return result
+			dict["accessToken"] = access_token
+		return dict
 
 ## Platform-specific purchase verification parameters.  - apple: Verifies via App Store Server API - google: Verifies via Google Play Developer API - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
 class VerifyPurchaseProps:
@@ -2971,23 +3100,23 @@ class VerifyPurchaseProps:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if apple != null:
 			if apple.has_method("to_dict"):
-				result["apple"] = apple.to_dict()
+				dict["apple"] = apple.to_dict()
 			else:
-				result["apple"] = apple
+				dict["apple"] = apple
 		if google != null:
 			if google.has_method("to_dict"):
-				result["google"] = google.to_dict()
+				dict["google"] = google.to_dict()
 			else:
-				result["google"] = google
+				dict["google"] = google
 		if horizon != null:
 			if horizon.has_method("to_dict"):
-				result["horizon"] = horizon.to_dict()
+				dict["horizon"] = horizon.to_dict()
 			else:
-				result["horizon"] = horizon
-		return result
+				dict["horizon"] = horizon
+		return dict
 
 class VerifyPurchaseWithProviderProps:
 	var provider: PurchaseVerificationProvider
@@ -3005,185 +3134,188 @@ class VerifyPurchaseWithProviderProps:
 		return obj
 
 	func to_dict() -> Dictionary:
-		var result = {}
+		var dict = {}
 		if provider != null:
-			result["provider"] = provider
+			if PURCHASE_VERIFICATION_PROVIDER_VALUES.has(provider):
+				dict["provider"] = PURCHASE_VERIFICATION_PROVIDER_VALUES[provider]
+			else:
+				dict["provider"] = provider
 		if iapkit != null:
 			if iapkit.has_method("to_dict"):
-				result["iapkit"] = iapkit.to_dict()
+				dict["iapkit"] = iapkit.to_dict()
 			else:
-				result["iapkit"] = iapkit
-		return result
+				dict["iapkit"] = iapkit
+		return dict
 
 # ============================================================================
 # Enum String Helpers
 # ============================================================================
 
 const ALTERNATIVE_BILLING_MODE_ANDROID_VALUES = {
-	AlternativeBillingModeAndroid.NONE: "NONE",
-	AlternativeBillingModeAndroid.USER_CHOICE: "USER_CHOICE",
-	AlternativeBillingModeAndroid.ALTERNATIVE_ONLY: "ALTERNATIVE_ONLY"
+	AlternativeBillingModeAndroid.NONE: "none",
+	AlternativeBillingModeAndroid.USER_CHOICE: "user-choice",
+	AlternativeBillingModeAndroid.ALTERNATIVE_ONLY: "alternative-only"
 }
 
 const BILLING_PROGRAM_ANDROID_VALUES = {
-	BillingProgramAndroid.UNSPECIFIED: "UNSPECIFIED",
-	BillingProgramAndroid.USER_CHOICE_BILLING: "USER_CHOICE_BILLING",
-	BillingProgramAndroid.EXTERNAL_CONTENT_LINK: "EXTERNAL_CONTENT_LINK",
-	BillingProgramAndroid.EXTERNAL_OFFER: "EXTERNAL_OFFER",
-	BillingProgramAndroid.EXTERNAL_PAYMENTS: "EXTERNAL_PAYMENTS"
+	BillingProgramAndroid.UNSPECIFIED: "unspecified",
+	BillingProgramAndroid.USER_CHOICE_BILLING: "user-choice-billing",
+	BillingProgramAndroid.EXTERNAL_CONTENT_LINK: "external-content-link",
+	BillingProgramAndroid.EXTERNAL_OFFER: "external-offer",
+	BillingProgramAndroid.EXTERNAL_PAYMENTS: "external-payments"
 }
 
 const DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_VALUES = {
-	DeveloperBillingLaunchModeAndroid.UNSPECIFIED: "UNSPECIFIED",
-	DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP: "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP",
-	DeveloperBillingLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK: "CALLER_WILL_LAUNCH_LINK"
+	DeveloperBillingLaunchModeAndroid.UNSPECIFIED: "unspecified",
+	DeveloperBillingLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP: "launch-in-external-browser-or-app",
+	DeveloperBillingLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK: "caller-will-launch-link"
 }
 
 const ERROR_CODE_VALUES = {
-	ErrorCode.UNKNOWN: "Unknown",
-	ErrorCode.USER_CANCELLED: "UserCancelled",
-	ErrorCode.USER_ERROR: "UserError",
-	ErrorCode.ITEM_UNAVAILABLE: "ItemUnavailable",
-	ErrorCode.REMOTE_ERROR: "RemoteError",
-	ErrorCode.NETWORK_ERROR: "NetworkError",
-	ErrorCode.SERVICE_ERROR: "ServiceError",
-	ErrorCode.RECEIPT_FAILED: "ReceiptFailed",
-	ErrorCode.RECEIPT_FINISHED: "ReceiptFinished",
-	ErrorCode.RECEIPT_FINISHED_FAILED: "ReceiptFinishedFailed",
-	ErrorCode.PURCHASE_VERIFICATION_FAILED: "PurchaseVerificationFailed",
-	ErrorCode.PURCHASE_VERIFICATION_FINISHED: "PurchaseVerificationFinished",
-	ErrorCode.PURCHASE_VERIFICATION_FINISH_FAILED: "PurchaseVerificationFinishFailed",
-	ErrorCode.NOT_PREPARED: "NotPrepared",
-	ErrorCode.NOT_ENDED: "NotEnded",
-	ErrorCode.ALREADY_OWNED: "AlreadyOwned",
-	ErrorCode.DEVELOPER_ERROR: "DeveloperError",
-	ErrorCode.BILLING_RESPONSE_JSON_PARSE_ERROR: "BillingResponseJsonParseError",
-	ErrorCode.DEFERRED_PAYMENT: "DeferredPayment",
-	ErrorCode.INTERRUPTED: "Interrupted",
-	ErrorCode.IAP_NOT_AVAILABLE: "IapNotAvailable",
-	ErrorCode.PURCHASE_ERROR: "PurchaseError",
-	ErrorCode.SYNC_ERROR: "SyncError",
-	ErrorCode.TRANSACTION_VALIDATION_FAILED: "TransactionValidationFailed",
-	ErrorCode.ACTIVITY_UNAVAILABLE: "ActivityUnavailable",
-	ErrorCode.ALREADY_PREPARED: "AlreadyPrepared",
-	ErrorCode.PENDING: "Pending",
-	ErrorCode.CONNECTION_CLOSED: "ConnectionClosed",
-	ErrorCode.INIT_CONNECTION: "InitConnection",
-	ErrorCode.SERVICE_DISCONNECTED: "ServiceDisconnected",
-	ErrorCode.QUERY_PRODUCT: "QueryProduct",
-	ErrorCode.SKU_NOT_FOUND: "SkuNotFound",
-	ErrorCode.SKU_OFFER_MISMATCH: "SkuOfferMismatch",
-	ErrorCode.ITEM_NOT_OWNED: "ItemNotOwned",
-	ErrorCode.BILLING_UNAVAILABLE: "BillingUnavailable",
-	ErrorCode.FEATURE_NOT_SUPPORTED: "FeatureNotSupported",
-	ErrorCode.EMPTY_SKU_LIST: "EmptySkuList"
+	ErrorCode.UNKNOWN: "unknown",
+	ErrorCode.USER_CANCELLED: "user-cancelled",
+	ErrorCode.USER_ERROR: "user-error",
+	ErrorCode.ITEM_UNAVAILABLE: "item-unavailable",
+	ErrorCode.REMOTE_ERROR: "remote-error",
+	ErrorCode.NETWORK_ERROR: "network-error",
+	ErrorCode.SERVICE_ERROR: "service-error",
+	ErrorCode.RECEIPT_FAILED: "receipt-failed",
+	ErrorCode.RECEIPT_FINISHED: "receipt-finished",
+	ErrorCode.RECEIPT_FINISHED_FAILED: "receipt-finished-failed",
+	ErrorCode.PURCHASE_VERIFICATION_FAILED: "purchase-verification-failed",
+	ErrorCode.PURCHASE_VERIFICATION_FINISHED: "purchase-verification-finished",
+	ErrorCode.PURCHASE_VERIFICATION_FINISH_FAILED: "purchase-verification-finish-failed",
+	ErrorCode.NOT_PREPARED: "not-prepared",
+	ErrorCode.NOT_ENDED: "not-ended",
+	ErrorCode.ALREADY_OWNED: "already-owned",
+	ErrorCode.DEVELOPER_ERROR: "developer-error",
+	ErrorCode.BILLING_RESPONSE_JSON_PARSE_ERROR: "billing-response-json-parse-error",
+	ErrorCode.DEFERRED_PAYMENT: "deferred-payment",
+	ErrorCode.INTERRUPTED: "interrupted",
+	ErrorCode.IAP_NOT_AVAILABLE: "iap-not-available",
+	ErrorCode.PURCHASE_ERROR: "purchase-error",
+	ErrorCode.SYNC_ERROR: "sync-error",
+	ErrorCode.TRANSACTION_VALIDATION_FAILED: "transaction-validation-failed",
+	ErrorCode.ACTIVITY_UNAVAILABLE: "activity-unavailable",
+	ErrorCode.ALREADY_PREPARED: "already-prepared",
+	ErrorCode.PENDING: "pending",
+	ErrorCode.CONNECTION_CLOSED: "connection-closed",
+	ErrorCode.INIT_CONNECTION: "init-connection",
+	ErrorCode.SERVICE_DISCONNECTED: "service-disconnected",
+	ErrorCode.QUERY_PRODUCT: "query-product",
+	ErrorCode.SKU_NOT_FOUND: "sku-not-found",
+	ErrorCode.SKU_OFFER_MISMATCH: "sku-offer-mismatch",
+	ErrorCode.ITEM_NOT_OWNED: "item-not-owned",
+	ErrorCode.BILLING_UNAVAILABLE: "billing-unavailable",
+	ErrorCode.FEATURE_NOT_SUPPORTED: "feature-not-supported",
+	ErrorCode.EMPTY_SKU_LIST: "empty-sku-list"
 }
 
 const EXTERNAL_LINK_LAUNCH_MODE_ANDROID_VALUES = {
-	ExternalLinkLaunchModeAndroid.UNSPECIFIED: "UNSPECIFIED",
-	ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP: "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP",
-	ExternalLinkLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK: "CALLER_WILL_LAUNCH_LINK"
+	ExternalLinkLaunchModeAndroid.UNSPECIFIED: "unspecified",
+	ExternalLinkLaunchModeAndroid.LAUNCH_IN_EXTERNAL_BROWSER_OR_APP: "launch-in-external-browser-or-app",
+	ExternalLinkLaunchModeAndroid.CALLER_WILL_LAUNCH_LINK: "caller-will-launch-link"
 }
 
 const EXTERNAL_LINK_TYPE_ANDROID_VALUES = {
-	ExternalLinkTypeAndroid.UNSPECIFIED: "UNSPECIFIED",
-	ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER: "LINK_TO_DIGITAL_CONTENT_OFFER",
-	ExternalLinkTypeAndroid.LINK_TO_APP_DOWNLOAD: "LINK_TO_APP_DOWNLOAD"
+	ExternalLinkTypeAndroid.UNSPECIFIED: "unspecified",
+	ExternalLinkTypeAndroid.LINK_TO_DIGITAL_CONTENT_OFFER: "link-to-digital-content-offer",
+	ExternalLinkTypeAndroid.LINK_TO_APP_DOWNLOAD: "link-to-app-download"
 }
 
 const EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES = {
-	ExternalPurchaseNoticeAction.CONTINUE: "Continue",
-	ExternalPurchaseNoticeAction.DISMISSED: "Dismissed"
+	ExternalPurchaseNoticeAction.CONTINUE: "continue",
+	ExternalPurchaseNoticeAction.DISMISSED: "dismissed"
 }
 
 const IAP_EVENT_VALUES = {
-	IapEvent.PURCHASE_UPDATED: "PurchaseUpdated",
-	IapEvent.PURCHASE_ERROR: "PurchaseError",
-	IapEvent.PROMOTED_PRODUCT_IOS: "PromotedProductIOS",
-	IapEvent.USER_CHOICE_BILLING_ANDROID: "UserChoiceBillingAndroid",
-	IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID: "DeveloperProvidedBillingAndroid"
+	IapEvent.PURCHASE_UPDATED: "purchase-updated",
+	IapEvent.PURCHASE_ERROR: "purchase-error",
+	IapEvent.PROMOTED_PRODUCT_IOS: "promoted-product-ios",
+	IapEvent.USER_CHOICE_BILLING_ANDROID: "user-choice-billing-android",
+	IapEvent.DEVELOPER_PROVIDED_BILLING_ANDROID: "developer-provided-billing-android"
 }
 
 const IAPKIT_PURCHASE_STATE_VALUES = {
-	IapkitPurchaseState.ENTITLED: "ENTITLED",
-	IapkitPurchaseState.PENDING_ACKNOWLEDGMENT: "PENDING_ACKNOWLEDGMENT",
-	IapkitPurchaseState.PENDING: "PENDING",
-	IapkitPurchaseState.CANCELED: "CANCELED",
-	IapkitPurchaseState.EXPIRED: "EXPIRED",
-	IapkitPurchaseState.READY_TO_CONSUME: "READY_TO_CONSUME",
-	IapkitPurchaseState.CONSUMED: "CONSUMED",
-	IapkitPurchaseState.UNKNOWN: "UNKNOWN",
-	IapkitPurchaseState.INAUTHENTIC: "INAUTHENTIC"
+	IapkitPurchaseState.ENTITLED: "entitled",
+	IapkitPurchaseState.PENDING_ACKNOWLEDGMENT: "pending-acknowledgment",
+	IapkitPurchaseState.PENDING: "pending",
+	IapkitPurchaseState.CANCELED: "canceled",
+	IapkitPurchaseState.EXPIRED: "expired",
+	IapkitPurchaseState.READY_TO_CONSUME: "ready-to-consume",
+	IapkitPurchaseState.CONSUMED: "consumed",
+	IapkitPurchaseState.UNKNOWN: "unknown",
+	IapkitPurchaseState.INAUTHENTIC: "inauthentic"
 }
 
 const IAP_PLATFORM_VALUES = {
-	IapPlatform.IOS: "IOS",
-	IapPlatform.ANDROID: "Android"
+	IapPlatform.IOS: "ios",
+	IapPlatform.ANDROID: "android"
 }
 
 const IAP_STORE_VALUES = {
-	IapStore.UNKNOWN: "Unknown",
-	IapStore.APPLE: "Apple",
-	IapStore.GOOGLE: "Google",
-	IapStore.HORIZON: "Horizon"
+	IapStore.UNKNOWN: "unknown",
+	IapStore.APPLE: "apple",
+	IapStore.GOOGLE: "google",
+	IapStore.HORIZON: "horizon"
 }
 
 const PAYMENT_MODE_IOS_VALUES = {
-	PaymentModeIOS.EMPTY: "Empty",
-	PaymentModeIOS.FREE_TRIAL: "FreeTrial",
-	PaymentModeIOS.PAY_AS_YOU_GO: "PayAsYouGo",
-	PaymentModeIOS.PAY_UP_FRONT: "PayUpFront"
+	PaymentModeIOS.EMPTY: "empty",
+	PaymentModeIOS.FREE_TRIAL: "free-trial",
+	PaymentModeIOS.PAY_AS_YOU_GO: "pay-as-you-go",
+	PaymentModeIOS.PAY_UP_FRONT: "pay-up-front"
 }
 
 const PRODUCT_QUERY_TYPE_VALUES = {
-	ProductQueryType.IN_APP: "InApp",
-	ProductQueryType.SUBS: "Subs",
-	ProductQueryType.ALL: "All"
+	ProductQueryType.IN_APP: "in-app",
+	ProductQueryType.SUBS: "subs",
+	ProductQueryType.ALL: "all"
 }
 
 const PRODUCT_TYPE_VALUES = {
-	ProductType.IN_APP: "InApp",
-	ProductType.SUBS: "Subs"
+	ProductType.IN_APP: "in-app",
+	ProductType.SUBS: "subs"
 }
 
 const PRODUCT_TYPE_IOS_VALUES = {
-	ProductTypeIOS.CONSUMABLE: "Consumable",
-	ProductTypeIOS.NON_CONSUMABLE: "NonConsumable",
-	ProductTypeIOS.AUTO_RENEWABLE_SUBSCRIPTION: "AutoRenewableSubscription",
-	ProductTypeIOS.NON_RENEWING_SUBSCRIPTION: "NonRenewingSubscription"
+	ProductTypeIOS.CONSUMABLE: "consumable",
+	ProductTypeIOS.NON_CONSUMABLE: "non-consumable",
+	ProductTypeIOS.AUTO_RENEWABLE_SUBSCRIPTION: "auto-renewable-subscription",
+	ProductTypeIOS.NON_RENEWING_SUBSCRIPTION: "non-renewing-subscription"
 }
 
 const PURCHASE_STATE_VALUES = {
-	PurchaseState.PENDING: "Pending",
-	PurchaseState.PURCHASED: "Purchased",
-	PurchaseState.UNKNOWN: "Unknown"
+	PurchaseState.PENDING: "pending",
+	PurchaseState.PURCHASED: "purchased",
+	PurchaseState.UNKNOWN: "unknown"
 }
 
 const PURCHASE_VERIFICATION_PROVIDER_VALUES = {
-	PurchaseVerificationProvider.IAPKIT: "Iapkit"
+	PurchaseVerificationProvider.IAPKIT: "iapkit"
 }
 
 const SUBSCRIPTION_OFFER_TYPE_IOS_VALUES = {
-	SubscriptionOfferTypeIOS.INTRODUCTORY: "Introductory",
-	SubscriptionOfferTypeIOS.PROMOTIONAL: "Promotional"
+	SubscriptionOfferTypeIOS.INTRODUCTORY: "introductory",
+	SubscriptionOfferTypeIOS.PROMOTIONAL: "promotional"
 }
 
 const SUBSCRIPTION_PERIOD_IOS_VALUES = {
-	SubscriptionPeriodIOS.DAY: "Day",
-	SubscriptionPeriodIOS.WEEK: "Week",
-	SubscriptionPeriodIOS.MONTH: "Month",
-	SubscriptionPeriodIOS.YEAR: "Year",
-	SubscriptionPeriodIOS.EMPTY: "Empty"
+	SubscriptionPeriodIOS.DAY: "day",
+	SubscriptionPeriodIOS.WEEK: "week",
+	SubscriptionPeriodIOS.MONTH: "month",
+	SubscriptionPeriodIOS.YEAR: "year",
+	SubscriptionPeriodIOS.EMPTY: "empty"
 }
 
 const SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES = {
-	SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE: "UNKNOWN_REPLACEMENT_MODE",
-	SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION: "WITH_TIME_PRORATION",
-	SubscriptionReplacementModeAndroid.CHARGE_PRORATED_PRICE: "CHARGE_PRORATED_PRICE",
-	SubscriptionReplacementModeAndroid.CHARGE_FULL_PRICE: "CHARGE_FULL_PRICE",
-	SubscriptionReplacementModeAndroid.WITHOUT_PRORATION: "WITHOUT_PRORATION",
-	SubscriptionReplacementModeAndroid.DEFERRED: "DEFERRED",
-	SubscriptionReplacementModeAndroid.KEEP_EXISTING: "KEEP_EXISTING"
+	SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE: "unknown-replacement-mode",
+	SubscriptionReplacementModeAndroid.WITH_TIME_PRORATION: "with-time-proration",
+	SubscriptionReplacementModeAndroid.CHARGE_PRORATED_PRICE: "charge-prorated-price",
+	SubscriptionReplacementModeAndroid.CHARGE_FULL_PRICE: "charge-full-price",
+	SubscriptionReplacementModeAndroid.WITHOUT_PRORATION: "without-proration",
+	SubscriptionReplacementModeAndroid.DEFERRED: "deferred",
+	SubscriptionReplacementModeAndroid.KEEP_EXISTING: "keep-existing"
 }
 
 # ============================================================================
@@ -3213,9 +3345,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["params"] = params
-				return result
+				var dict = {}
+				dict["params"] = params
+				return dict
 		const return_type = "FetchProductsResult"
 		const is_array = false
 
@@ -3233,9 +3365,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["options"] = options
-				return result
+				var dict = {}
+				dict["options"] = options
+				return dict
 		const return_type = "Purchase"
 		const is_array = true
 
@@ -3253,9 +3385,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["subscriptionIds"] = subscription_ids
-				return result
+				var dict = {}
+				dict["subscriptionIds"] = subscription_ids
+				return dict
 		const return_type = "ActiveSubscription"
 		const is_array = true
 
@@ -3273,9 +3405,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["subscriptionIds"] = subscription_ids
-				return result
+				var dict = {}
+				dict["subscriptionIds"] = subscription_ids
+				return dict
 		const return_type = "Boolean"
 		const is_array = false
 
@@ -3338,9 +3470,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["groupID"] = group_id
-				return result
+				var dict = {}
+				dict["groupID"] = group_id
+				return dict
 		const return_type = "Boolean"
 		const is_array = false
 
@@ -3358,9 +3490,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["sku"] = sku
-				return result
+				var dict = {}
+				dict["sku"] = sku
+				return dict
 		const return_type = "SubscriptionStatusIOS"
 		const is_array = true
 
@@ -3378,9 +3510,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["sku"] = sku
-				return result
+				var dict = {}
+				dict["sku"] = sku
+				return dict
 		const return_type = "PurchaseIOS"
 		const is_array = false
 
@@ -3398,9 +3530,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["sku"] = sku
-				return result
+				var dict = {}
+				dict["sku"] = sku
+				return dict
 		const return_type = "PurchaseIOS"
 		const is_array = false
 
@@ -3418,9 +3550,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["sku"] = sku
-				return result
+				var dict = {}
+				dict["sku"] = sku
+				return dict
 		const return_type = "Boolean"
 		const is_array = false
 
@@ -3438,9 +3570,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["sku"] = sku
-				return result
+				var dict = {}
+				dict["sku"] = sku
+				return dict
 		const return_type = "String"
 		const is_array = false
 
@@ -3476,9 +3608,9 @@ class Query:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["options"] = options
-				return result
+				var dict = {}
+				dict["options"] = options
+				return dict
 		const return_type = "VerifyPurchaseResultIOS"
 		const is_array = false
 
@@ -3510,9 +3642,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["config"] = config
-				return result
+				var dict = {}
+				dict["config"] = config
+				return dict
 		const return_type = "Boolean"
 		const is_array = false
 
@@ -3539,9 +3671,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["params"] = params
-				return result
+				var dict = {}
+				dict["params"] = params
+				return dict
 		const return_type = "RequestPurchaseResult"
 		const is_array = false
 
@@ -3562,10 +3694,10 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["purchase"] = purchase
-				result["isConsumable"] = is_consumable
-				return result
+				var dict = {}
+				dict["purchase"] = purchase
+				dict["isConsumable"] = is_consumable
+				return dict
 		const return_type = "VoidResult"
 		const is_array = false
 
@@ -3592,9 +3724,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["options"] = options
-				return result
+				var dict = {}
+				dict["options"] = options
+				return dict
 		const return_type = "VoidResult"
 		const is_array = false
 
@@ -3612,9 +3744,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["options"] = options
-				return result
+				var dict = {}
+				dict["options"] = options
+				return dict
 		const return_type = "VerifyPurchaseResult"
 		const is_array = false
 
@@ -3632,9 +3764,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["options"] = options
-				return result
+				var dict = {}
+				dict["options"] = options
+				return dict
 		const return_type = "VerifyPurchaseResult"
 		const is_array = false
 
@@ -3652,9 +3784,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["options"] = options
-				return result
+				var dict = {}
+				dict["options"] = options
+				return dict
 		const return_type = "VerifyPurchaseWithProviderResult"
 		const is_array = false
 
@@ -3699,9 +3831,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["sku"] = sku
-				return result
+				var dict = {}
+				dict["sku"] = sku
+				return dict
 		const return_type = "String"
 		const is_array = false
 
@@ -3746,9 +3878,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["url"] = url
-				return result
+				var dict = {}
+				dict["url"] = url
+				return dict
 		const return_type = "ExternalPurchaseLinkResultIOS"
 		const is_array = false
 
@@ -3766,9 +3898,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["purchaseToken"] = purchase_token
-				return result
+				var dict = {}
+				dict["purchaseToken"] = purchase_token
+				return dict
 		const return_type = "Boolean"
 		const is_array = false
 
@@ -3786,9 +3918,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["purchaseToken"] = purchase_token
-				return result
+				var dict = {}
+				dict["purchaseToken"] = purchase_token
+				return dict
 		const return_type = "Boolean"
 		const is_array = false
 
@@ -3833,9 +3965,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["program"] = program
-				return result
+				var dict = {}
+				dict["program"] = program
+				return dict
 		const return_type = "BillingProgramAvailabilityResultAndroid"
 		const is_array = false
 
@@ -3853,9 +3985,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["program"] = program
-				return result
+				var dict = {}
+				dict["program"] = program
+				return dict
 		const return_type = "BillingProgramReportingDetailsAndroid"
 		const is_array = false
 
@@ -3873,9 +4005,9 @@ class Mutation:
 				return obj
 
 			func to_dict() -> Dictionary:
-				var result = {}
-				result["params"] = params
-				return result
+				var dict = {}
+				dict["params"] = params
+				return dict
 		const return_type = "Boolean"
 		const is_array = false
 

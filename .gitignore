@@ -2,6 +2,7 @@
 .godot/
 godot-cpp/
 *.import
+!Example/*.import
 export.cfg
 
 # Example - exported projects (keep .gitkeep)

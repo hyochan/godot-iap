@@ -117,9 +117,8 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		# Finish transaction (consumables: 10bulbs, 30bulbs)
 		var consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
 
-		# Create typed PurchaseInput
-		var purchase_input = Types.PurchaseInput.from_dict(purchase)
-		GodotIapPlugin.finish_transaction(purchase_input, consumable)
+		# Use the raw purchase dictionary directly to preserve transactionId
+		GodotIapPlugin.finish_transaction_dict(purchase, consumable)
 
 		purchase_completed.emit(product_id)
 

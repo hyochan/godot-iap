@@ -1070,20 +1070,41 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @MainActor
     private func emitPurchaseUpdated(purchase: Purchase) {
-        // Extract transactionId from the underlying type
+        // Extract all required fields from the underlying type
         var transactionId: String = ""
+        var purchaseId: String = ""
+        var transactionDate: Double = 0
+        var quantity: Int = 1
+        var isAutoRenewing: Bool = false
+        var store: String = "apple"
+
         switch purchase {
         case .purchaseIos(let p):
             transactionId = p.transactionId
+            purchaseId = p.id
+            transactionDate = p.transactionDate
+            quantity = p.quantity
+            isAutoRenewing = p.isAutoRenewing
+            store = p.store.rawValue
         case .purchaseAndroid(let p):
             transactionId = p.transactionId ?? ""
+            purchaseId = p.id
+            transactionDate = p.transactionDate
+            quantity = p.quantity
+            isAutoRenewing = p.isAutoRenewing
+            store = p.store.rawValue
         }
 
         let dict = VariantDictionary()
+        dict["id"] = Variant(purchaseId)
         dict["productId"] = Variant(purchase.productId)
         dict["transactionId"] = Variant(transactionId)
+        dict["transactionDate"] = Variant(transactionDate)
         dict["purchaseState"] = Variant(purchase.purchaseState.rawValue)
         dict["platform"] = Variant("ios")
+        dict["store"] = Variant(store)
+        dict["quantity"] = Variant(quantity)
+        dict["isAutoRenewing"] = Variant(isAutoRenewing)
 
         if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseToDictionary(purchase)),
            let jsonString = String(data: jsonData, encoding: .utf8) {

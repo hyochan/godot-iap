@@ -30,7 +30,7 @@ YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
 
-.PHONY: all setup ios ios-build android clean help run-android run-ios export-ios export-android test-setup test-android test-ios export-test-android export-test-ios
+.PHONY: all setup ios ios-build android clean help run-android run-ios export-ios export-android test-setup test-android test-ios export-test-android export-test-ios test
 
 help:
 	@echo "GodotIap Build System"
@@ -47,6 +47,9 @@ help:
 	@echo "  make run-ios       - Export iOS project and open in Xcode"
 	@echo "  make export-ios    - Export iOS Xcode project only"
 	@echo "  make export-android - Export Android APK only"
+	@echo ""
+	@echo "Unit test commands:"
+	@echo "  make test          - Run GDScript unit tests (headless)"
 	@echo ""
 	@echo "Test commands (TestProject - local build testing):"
 	@echo "  make test-android  - Copy local binaries to TestProject and run on Android"
@@ -118,6 +121,12 @@ gradle-wrapper:
 all: android ios
 	@echo ""
 	@echo "$(GREEN)All builds complete!$(NC)"
+
+# Run GDScript unit tests (types only - no native plugin required)
+test:
+	@echo "$(GREEN)Running GDScript unit tests...$(NC)"
+	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_types_only.gd
+	@echo "$(GREEN)✓ Tests complete$(NC)"
 
 # Clean build artifacts
 clean:

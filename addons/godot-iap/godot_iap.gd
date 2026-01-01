@@ -200,9 +200,7 @@ func init_connection() -> bool:
 func end_connection() -> bool:
 	print("[GodotIap] end_connection called")
 	if _native_plugin:
-		var result = false
-		if _native_plugin.has_method("endConnection"):
-			result = _native_plugin.endConnection()
+		var result = _native_plugin.endConnection()
 		_is_connected = false
 		return result
 	_is_connected = false
@@ -277,24 +275,32 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 	var request = args.get("requestPurchase", args.get("request", {}))
 	var purchase_type = args.get("type", "in-app")
 
-	var sku = ""
-
-	# Extract SKU based on platform (expo-iap pattern: apple/google or ios/android)
-	if _platform == "iOS":
-		var apple_props = request.get("apple", request.get("ios", {}))
-		sku = apple_props.get("sku", "")
-	elif _platform == "Android":
+	var result_json: String
+	if _platform == "Android":
+		# Build params like expo-iap: pass all params as JSON, let native side parse
 		var google_props = request.get("google", request.get("android", {}))
-		var skus = google_props.get("skus", [])
-		if skus is Array and skus.size() > 0:
-			sku = skus[0]
+		var params = {
+			"type": purchase_type,
+			"skus": google_props.get("skus", []),
+			"obfuscatedAccountIdAndroid": google_props.get("obfuscatedAccountIdAndroid", ""),
+			"obfuscatedProfileIdAndroid": google_props.get("obfuscatedProfileIdAndroid", ""),
+			"isOfferPersonalized": google_props.get("isOfferPersonalized", false),
+			"subscriptionOffers": google_props.get("subscriptionOffers", []),
+			"purchaseTokenAndroid": google_props.get("purchaseTokenAndroid", ""),
+			"replacementModeAndroid": google_props.get("replacementModeAndroid", 0),
+		}
+		var params_json = JSON.stringify(params)
+		print("[GodotIap] Calling Android requestPurchase with: ", params_json)
+		result_json = _native_plugin.requestPurchase(params_json)
+	elif _platform == "iOS":
+		var apple_props = request.get("apple", request.get("ios", {}))
+		var sku = apple_props.get("sku", "")
+		if sku.is_empty():
+			return { "success": false, "error": "Invalid request: SKU is required" }
+		result_json = _native_plugin.requestPurchase(sku)
+	else:
+		return { "success": false, "error": "Unsupported platform" }
 
-	if sku.is_empty():
-		return { "success": false, "error": "Invalid request: SKU is required" }
-
-	print("[GodotIap] Requesting purchase for SKU: ", sku, ", type: ", purchase_type)
-
-	var result_json = _native_plugin.requestPurchase(sku)
 	print("[GodotIap] requestPurchase result: ", result_json)
 	var result = JSON.parse_string(result_json)
 	if result is Dictionary:
@@ -328,14 +334,22 @@ func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dicti
 		return { "success": true }
 
 	if _platform == "Android":
-		var token = purchase.get("purchaseToken", "")
-		if token.is_empty():
-			return { "success": false, "error": "Purchase token is required", "code": Types.ErrorCode.DEVELOPER_ERROR }
+		# Use the Kotlin finishTransaction method which handles both consume and acknowledge
+		# It internally calls store.finishTransaction(purchase, isConsumable) from OpenIAP
+		var product_id = purchase.get("productId", "")
+		if product_id.is_empty():
+			return { "success": false, "error": "Product ID is required", "code": Types.ErrorCode.DEVELOPER_ERROR }
 
-		if is_consumable:
-			return _consume_purchase_android_raw(token)
-		else:
-			return _acknowledge_purchase_android_raw(token)
+		var purchase_json = JSON.stringify(purchase)
+		print("[GodotIap] Calling Android finishTransaction with: ", purchase_json, ", isConsumable: ", is_consumable)
+
+		# Note: has_method() doesn't work reliably with JNISingleton, so we call directly
+		var result_json = _native_plugin.finishTransaction(purchase_json, is_consumable)
+		print("[GodotIap] finishTransaction result: ", result_json)
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return result
+		return { "success": false, "error": "Parse error" }
 
 	elif _platform == "iOS":
 		var args = { "purchase": purchase, "isConsumable": is_consumable }
@@ -433,13 +447,12 @@ func _get_active_subscriptions_raw(subscription_ids: Array = []) -> Array:
 ## Returns true if any subscription is active
 func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool:
 	print("[GodotIap] has_active_subscriptions called")
-	if _native_plugin:
-		if _native_plugin.has_method("hasActiveSubscriptions"):
-			var ids_json = JSON.stringify(subscription_ids) if subscription_ids.size() > 0 else ""
-			var result_json = _native_plugin.hasActiveSubscriptions(ids_json)
-			var result = JSON.parse_string(result_json)
-			if result is Dictionary:
-				return result.get("hasActive", false)
+	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
+		var ids_json = JSON.stringify(subscription_ids) if subscription_ids.size() > 0 else ""
+		var result_json = _native_plugin.hasActiveSubscriptions(ids_json)
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return result.get("hasActive", false)
 	# Fallback: check manually
 	var subscriptions = get_active_subscriptions(subscription_ids)
 	for sub in subscriptions:
@@ -456,12 +469,12 @@ func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool:
 func get_storefront() -> String:
 	print("[GodotIap] get_storefront called")
 	if _native_plugin:
-		if _platform == "iOS" and _native_plugin.has_method("getStorefrontIOS"):
+		if _platform == "iOS":
 			var result_json = _native_plugin.getStorefrontIOS()
 			var result = JSON.parse_string(result_json)
 			if result is Dictionary and result.get("success", false):
 				return result.get("storefront", "")
-		elif _platform == "Android" and _native_plugin.has_method("getStorefrontAndroid"):
+		elif _platform == "Android":
 			var result_json = _native_plugin.getStorefrontAndroid()
 			var result = JSON.parse_string(result_json)
 			if result is Dictionary and result.get("success", false):
@@ -488,13 +501,12 @@ func verify_purchase(props: Types.VerifyPurchaseProps) -> Variant:
 
 ## Internal: Verify purchase with raw Dictionary
 func _verify_purchase_raw(props: Dictionary) -> Dictionary:
-	if _native_plugin:
-		if _native_plugin.has_method("verifyPurchase"):
-			var props_json = JSON.stringify(props)
-			var result_json = _native_plugin.verifyPurchase(props_json)
-			var result = JSON.parse_string(result_json)
-			if result is Dictionary:
-				return result
+	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
+		var props_json = JSON.stringify(props)
+		var result_json = _native_plugin.verifyPurchase(props_json)
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return result
 	# Mock mode
 	return { "isValid": false, "error": "Not available in mock mode" }
 
@@ -508,13 +520,12 @@ func verify_purchase_with_provider(props: Types.VerifyPurchaseWithProviderProps)
 
 ## Internal: Verify purchase with provider raw Dictionary
 func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
-	if _native_plugin:
-		if _native_plugin.has_method("verifyPurchaseWithProvider"):
-			var props_json = JSON.stringify(props)
-			var result_json = _native_plugin.verifyPurchaseWithProvider(props_json)
-			var result = JSON.parse_string(result_json)
-			if result is Dictionary:
-				return result
+	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
+		var props_json = JSON.stringify(props)
+		var result_json = _native_plugin.verifyPurchaseWithProvider(props_json)
+		var result = JSON.parse_string(result_json)
+		if result is Dictionary:
+			return result
 	# Mock mode
 	return { "success": false, "isValid": false, "error": "Not available in mock mode" }
 
@@ -528,7 +539,7 @@ func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
 func sync_ios() -> Types.VoidResult:
 	var result = Types.VoidResult.new()
 	result.success = false
-	if _native_plugin and _native_plugin.has_method("syncIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.syncIOS()
 		var parsed = JSON.parse_string(result_json)
 		if parsed is Dictionary:
@@ -540,7 +551,7 @@ func sync_ios() -> Types.VoidResult:
 func clear_transaction_ios() -> Types.VoidResult:
 	var result = Types.VoidResult.new()
 	result.success = false
-	if _native_plugin and _native_plugin.has_method("clearTransactionIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.clearTransactionIOS()
 		var parsed = JSON.parse_string(result_json)
 		if parsed is Dictionary:
@@ -551,7 +562,7 @@ func clear_transaction_ios() -> Types.VoidResult:
 ## Returns Array of Types.PurchaseIOS objects
 func get_pending_transactions_ios() -> Array[Types.PurchaseIOS]:
 	var purchases: Array[Types.PurchaseIOS] = []
-	if _native_plugin and _native_plugin.has_method("getPendingTransactionsIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.getPendingTransactionsIOS()
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary and result.get("success", false):
@@ -568,7 +579,7 @@ func get_pending_transactions_ios() -> Array[Types.PurchaseIOS]:
 func present_code_redemption_sheet_ios() -> Types.VoidResult:
 	var result = Types.VoidResult.new()
 	result.success = false
-	if _native_plugin and _native_plugin.has_method("presentCodeRedemptionSheetIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.presentCodeRedemptionSheetIOS()
 		var parsed = JSON.parse_string(result_json)
 		if parsed is Dictionary:
@@ -579,7 +590,7 @@ func present_code_redemption_sheet_ios() -> Types.VoidResult:
 ## Returns Array of Types.PurchaseIOS objects (changed purchases)
 func show_manage_subscriptions_ios() -> Array[Types.PurchaseIOS]:
 	var purchases: Array[Types.PurchaseIOS] = []
-	if _native_plugin and _native_plugin.has_method("showManageSubscriptionsIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.showManageSubscriptionsIOS()
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary and result.get("success", false):
@@ -595,7 +606,7 @@ func show_manage_subscriptions_ios() -> Array[Types.PurchaseIOS]:
 ## @param product_id: The product ID to request refund for
 ## Returns Types.RefundResultIOS
 func begin_refund_request_ios(product_id: String) -> Types.RefundResultIOS:
-	if _native_plugin and _native_plugin.has_method("beginRefundRequestIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.beginRefundRequestIOS(product_id)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -607,7 +618,7 @@ func begin_refund_request_ios(product_id: String) -> Types.RefundResultIOS:
 ## @param sku: Product SKU
 ## Returns Types.PurchaseIOS or null
 func current_entitlement_ios(sku: String) -> Variant:
-	if _native_plugin and _native_plugin.has_method("currentEntitlementIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.currentEntitlementIOS(sku)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary and result.get("success", false):
@@ -622,7 +633,7 @@ func current_entitlement_ios(sku: String) -> Variant:
 ## @param sku: Product SKU
 ## Returns Types.PurchaseIOS or null
 func latest_transaction_ios(sku: String) -> Variant:
-	if _native_plugin and _native_plugin.has_method("latestTransactionIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.latestTransactionIOS(sku)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary and result.get("success", false):
@@ -636,7 +647,7 @@ func latest_transaction_ios(sku: String) -> Variant:
 ## Get app transaction (iOS 16+)
 ## Returns Types.AppTransaction or null
 func get_app_transaction_ios() -> Variant:
-	if _native_plugin and _native_plugin.has_method("getAppTransactionIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.getAppTransactionIOS()
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary and result.get("success", false):
@@ -651,7 +662,7 @@ func get_app_transaction_ios() -> Variant:
 ## Returns Array of Types.SubscriptionStatusIOS objects
 func subscription_status_ios(sku: String) -> Array[Types.SubscriptionStatusIOS]:
 	var statuses: Array[Types.SubscriptionStatusIOS] = []
-	if _native_plugin and _native_plugin.has_method("subscriptionStatusIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.subscriptionStatusIOS(sku)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary and result.get("success", false):
@@ -667,7 +678,7 @@ func subscription_status_ios(sku: String) -> Array[Types.SubscriptionStatusIOS]:
 ## @param group_id: Subscription group ID
 ## Returns bool
 func is_eligible_for_intro_offer_ios(group_id: String) -> bool:
-	if _native_plugin and _native_plugin.has_method("isEligibleForIntroOfferIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.isEligibleForIntroOfferIOS(group_id)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -677,7 +688,7 @@ func is_eligible_for_intro_offer_ios(group_id: String) -> bool:
 ## Get promoted product (iOS only)
 ## Returns Types.ProductIOS or null
 func get_promoted_product_ios() -> Variant:
-	if _native_plugin and _native_plugin.has_method("getPromotedProductIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.getPromotedProductIOS()
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary and result.get("success", false):
@@ -693,7 +704,7 @@ func get_promoted_product_ios() -> Variant:
 func request_purchase_on_promoted_product_ios() -> Types.VoidResult:
 	var result = Types.VoidResult.new()
 	result.success = false
-	if _native_plugin and _native_plugin.has_method("requestPurchaseOnPromotedProductIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.requestPurchaseOnPromotedProductIOS()
 		var parsed = JSON.parse_string(result_json)
 		if parsed is Dictionary:
@@ -703,7 +714,7 @@ func request_purchase_on_promoted_product_ios() -> Types.VoidResult:
 ## Check if can present external purchase notice (iOS 18.2+)
 ## Returns bool
 func can_present_external_purchase_notice_ios() -> bool:
-	if _native_plugin and _native_plugin.has_method("canPresentExternalPurchaseNoticeIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.canPresentExternalPurchaseNoticeIOS()
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -713,7 +724,7 @@ func can_present_external_purchase_notice_ios() -> bool:
 ## Present external purchase notice sheet (iOS 18.2+)
 ## Returns Types.ExternalPurchaseNoticeResultIOS
 func present_external_purchase_notice_sheet_ios() -> Types.ExternalPurchaseNoticeResultIOS:
-	if _native_plugin and _native_plugin.has_method("presentExternalPurchaseNoticeSheetIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.presentExternalPurchaseNoticeSheetIOS()
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -725,7 +736,7 @@ func present_external_purchase_notice_sheet_ios() -> Types.ExternalPurchaseNotic
 ## @param url: External purchase URL
 ## Returns Types.ExternalPurchaseLinkResultIOS
 func present_external_purchase_link_ios(url: String) -> Types.ExternalPurchaseLinkResultIOS:
-	if _native_plugin and _native_plugin.has_method("presentExternalPurchaseLinkIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.presentExternalPurchaseLinkIOS(url)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -736,7 +747,7 @@ func present_external_purchase_link_ios(url: String) -> Types.ExternalPurchaseLi
 ## Get receipt data (iOS only)
 ## Returns receipt data as base64 string
 func get_receipt_data_ios() -> String:
-	if _native_plugin and _native_plugin.has_method("getReceiptDataIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.getReceiptDataIOS()
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary and result.get("success", false):
@@ -747,7 +758,7 @@ func get_receipt_data_ios() -> String:
 ## @param sku: Product SKU
 ## Returns bool
 func is_transaction_verified_ios(sku: String) -> bool:
-	if _native_plugin and _native_plugin.has_method("isTransactionVerifiedIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.isTransactionVerifiedIOS(sku)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -758,7 +769,7 @@ func is_transaction_verified_ios(sku: String) -> bool:
 ## @param sku: Product SKU
 ## Returns JWS string
 func get_transaction_jws_ios(sku: String) -> String:
-	if _native_plugin and _native_plugin.has_method("getTransactionJwsIOS"):
+	if _native_plugin and _platform == "iOS":
 		var result_json = _native_plugin.getTransactionJwsIOS(sku)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary and result.get("success", false):
@@ -778,8 +789,11 @@ func acknowledge_purchase_android(purchase_token: String) -> Types.VoidResult:
 
 ## Internal: Acknowledge purchase raw
 func _acknowledge_purchase_android_raw(purchase_token: String) -> Dictionary:
-	if _native_plugin and _native_plugin.has_method("acknowledgePurchaseAndroid"):
+	print("[GodotIap] _acknowledge_purchase_android_raw called with token: ", purchase_token.substr(0, 20), "...")
+	if _native_plugin and _platform == "Android":
+		print("[GodotIap] Calling acknowledgePurchaseAndroid...")
 		var result_json = _native_plugin.acknowledgePurchaseAndroid(purchase_token)
+		print("[GodotIap] acknowledgePurchaseAndroid result: ", result_json)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return result
@@ -794,8 +808,11 @@ func consume_purchase_android(purchase_token: String) -> Types.VoidResult:
 
 ## Internal: Consume purchase raw
 func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
-	if _native_plugin and _native_plugin.has_method("consumePurchaseAndroid"):
+	print("[GodotIap] _consume_purchase_android_raw called with token: ", purchase_token.substr(0, 20), "...")
+	if _native_plugin and _platform == "Android":
+		print("[GodotIap] Calling consumePurchaseAndroid...")
 		var result_json = _native_plugin.consumePurchaseAndroid(purchase_token)
+		print("[GodotIap] consumePurchaseAndroid result: ", result_json)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
 			return result
@@ -804,7 +821,7 @@ func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
 ## Check alternative billing availability (Android)
 ## Returns Types.BillingProgramAvailabilityResultAndroid
 func check_alternative_billing_availability_android() -> Types.BillingProgramAvailabilityResultAndroid:
-	if _native_plugin and _native_plugin.has_method("checkAlternativeBillingAvailabilityAndroid"):
+	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.checkAlternativeBillingAvailabilityAndroid()
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -816,7 +833,7 @@ func check_alternative_billing_availability_android() -> Types.BillingProgramAva
 ## Show alternative billing dialog (Android)
 ## Returns Types.UserChoiceBillingDetails
 func show_alternative_billing_dialog_android() -> Types.UserChoiceBillingDetails:
-	if _native_plugin and _native_plugin.has_method("showAlternativeBillingDialogAndroid"):
+	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.showAlternativeBillingDialogAndroid()
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -827,7 +844,7 @@ func show_alternative_billing_dialog_android() -> Types.UserChoiceBillingDetails
 ## Create alternative billing token (Android)
 ## Returns Types.BillingProgramReportingDetailsAndroid
 func create_alternative_billing_token_android() -> Types.BillingProgramReportingDetailsAndroid:
-	if _native_plugin and _native_plugin.has_method("createAlternativeBillingTokenAndroid"):
+	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.createAlternativeBillingTokenAndroid()
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -839,7 +856,7 @@ func create_alternative_billing_token_android() -> Types.BillingProgramReporting
 ## @param billing_program: Types.BillingProgramAndroid enum value
 ## Returns Types.BillingProgramAvailabilityResultAndroid
 func is_billing_program_available_android(billing_program: Types.BillingProgramAndroid) -> Types.BillingProgramAvailabilityResultAndroid:
-	if _native_plugin and _native_plugin.has_method("isBillingProgramAvailableAndroid"):
+	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.isBillingProgramAvailableAndroid(billing_program)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -853,7 +870,7 @@ func is_billing_program_available_android(billing_program: Types.BillingProgramA
 ## @param params: Types.LaunchExternalLinkParamsAndroid
 ## Returns Types.VoidResult
 func launch_external_link_android(params: Types.LaunchExternalLinkParamsAndroid) -> Types.VoidResult:
-	if _native_plugin and _native_plugin.has_method("launchExternalLinkAndroid"):
+	if _native_plugin and _platform == "Android":
 		var params_json = JSON.stringify(params.to_dict())
 		var result_json = _native_plugin.launchExternalLinkAndroid(params_json)
 		var result = JSON.parse_string(result_json)
@@ -867,7 +884,7 @@ func launch_external_link_android(params: Types.LaunchExternalLinkParamsAndroid)
 ## @param billing_program: Types.BillingProgramAndroid enum value
 ## Returns Types.BillingProgramReportingDetailsAndroid
 func create_billing_program_reporting_details_android(billing_program: Types.BillingProgramAndroid) -> Types.BillingProgramReportingDetailsAndroid:
-	if _native_plugin and _native_plugin.has_method("createBillingProgramReportingDetailsAndroid"):
+	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.createBillingProgramReportingDetailsAndroid(billing_program)
 		var result = JSON.parse_string(result_json)
 		if result is Dictionary:
@@ -879,7 +896,7 @@ func create_billing_program_reporting_details_android(billing_program: Types.Bil
 ## Get the package name (Android only)
 ## Returns package name string
 func get_package_name_android() -> String:
-	if _native_plugin and _native_plugin.has_method("getPackageNameAndroid"):
+	if _native_plugin and _platform == "Android":
 		return _native_plugin.getPackageNameAndroid()
 	return ""
 
@@ -891,7 +908,7 @@ func get_package_name_android() -> String:
 ## @param options: Types.DeepLinkOptions (optional)
 func deep_link_to_subscriptions(options: Types.DeepLinkOptions = null) -> void:
 	var opts = options if options != null else Types.DeepLinkOptions.new()
-	if _native_plugin and _native_plugin.has_method("deepLinkToSubscriptions"):
+	if _native_plugin and (_platform == "Android" or _platform == "iOS"):
 		var options_json = JSON.stringify(opts.to_dict())
 		_native_plugin.deepLinkToSubscriptions(options_json)
 	elif _platform == "iOS":

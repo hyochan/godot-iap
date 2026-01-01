@@ -61,8 +61,44 @@ func _set_loading(loading: bool) -> void:
 
 func _fetch_products_delayed() -> void:
 	await get_tree().create_timer(0.5).timeout
+	# Clear any pending purchases first
+	_clear_pending_purchases()
 	print("[IAPManager] Fetching products...")
 	_fetch_products()
+
+
+## Clear pending purchases that weren't finished (e.g., app crashed after purchase)
+func _clear_pending_purchases() -> void:
+	print("[IAPManager] Checking for pending purchases...")
+	var pending_purchases = GodotIapPlugin.get_available_purchases()
+
+	if pending_purchases.size() == 0:
+		print("[IAPManager] No pending purchases found")
+		return
+
+	print("[IAPManager] Found %d pending purchase(s), finishing..." % pending_purchases.size())
+
+	for purchase in pending_purchases:
+		# Types.PurchaseAndroid/PurchaseIOS objects have direct properties
+		var product_id: String = purchase.product_id
+		var is_acknowledged: bool = purchase.is_acknowledged_android if "is_acknowledged_android" in purchase else false
+
+		print("[IAPManager] Processing pending purchase: %s (acknowledged: %s)" % [product_id, is_acknowledged])
+
+		# Skip already acknowledged purchases (non-consumables that are properly owned)
+		if is_acknowledged:
+			print("[IAPManager] Skipping acknowledged purchase: %s" % product_id)
+			continue
+
+		# Determine if consumable
+		var is_consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
+
+		print("[IAPManager] Finishing pending purchase: %s (consumable: %s)" % [product_id, is_consumable])
+
+		var result = GodotIapPlugin.finish_transaction_dict(purchase.to_dict(), is_consumable)
+		print("[IAPManager] finish_transaction_dict result: success=%s" % result.success)
+
+	print("[IAPManager] Pending purchases cleared")
 
 
 func _fetch_products() -> void:
@@ -179,6 +215,9 @@ func _purchase(product_id: String) -> void:
 
 	print("[IAPManager] Requesting purchase: %s" % product_id)
 
+	# Determine product type (subscription vs in-app)
+	var is_subscription = (product_id == PRODUCT_PREMIUM_YEAR)
+
 	# Create typed RequestPurchaseProps
 	var props = Types.RequestPurchaseProps.new()
 	props.request = Types.RequestPurchasePropsByPlatforms.new()
@@ -192,7 +231,8 @@ func _purchase(product_id: String) -> void:
 	props.request.apple = Types.RequestPurchaseIosProps.new()
 	props.request.apple.sku = product_id
 
-	props.type = Types.ProductQueryType.IN_APP
+	# Set correct product type
+	props.type = Types.ProductQueryType.SUBS if is_subscription else Types.ProductQueryType.IN_APP
 
 	var _result = GodotIapPlugin.request_purchase(props)
 

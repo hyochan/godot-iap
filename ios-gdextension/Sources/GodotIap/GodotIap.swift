@@ -65,19 +65,19 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     // MARK: - Initialization
     required init(_ context: InitContext) {
         super.init(context)
-        GD.print("[GodotIap] Plugin initialized with OpenIAP")
+        GodotIapLog.info("Plugin initialized with OpenIAP")
     }
 
     deinit {
         removeListeners()
-        GD.print("[GodotIap] Plugin deinitialized")
+        GodotIapLog.info("Plugin deinitialized")
     }
 
     // MARK: - Connection Methods
 
     @Callable
     public func initConnection() -> Bool {
-        GD.print("[GodotIap] Initializing connection...")
+        GodotIapLog.payload("initConnection", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -90,7 +90,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                         self.isConnected = true
                         self.connected.emit(1)
                     }
-                    GD.print("[GodotIap] Connection initialized successfully")
+                    GodotIapLog.result("initConnection", value: true)
                 } else {
                     await MainActor.run { [self] in
                         self.isConnected = false
@@ -98,7 +98,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                 }
             } catch {
-                GD.print("[GodotIap] initConnection error: \(error.localizedDescription)")
+                GodotIapLog.failure("initConnection", error: error)
                 await MainActor.run { [self] in
                     self.isConnected = false
                     self.connected.emit(0)
@@ -111,7 +111,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func endConnection() -> Bool {
-        GD.print("[GodotIap] Ending connection...")
+        GodotIapLog.payload("endConnection", payload: nil)
 
         removeListeners()
 
@@ -123,8 +123,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.isConnected = false
                     self.disconnected.emit(0)
                 }
+                GodotIapLog.result("endConnection", value: true)
             } catch {
-                GD.print("[GodotIap] endConnection error: \(error.localizedDescription)")
+                GodotIapLog.failure("endConnection", error: error)
             }
         }
 
@@ -135,7 +136,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func fetchProducts(argsJson: String) -> String {
-        GD.print("[GodotIap] Fetching products: \(argsJson)")
+        GodotIapLog.payload("fetchProducts", payload: argsJson)
 
         Task { [weak self] in
             do {
@@ -183,7 +184,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 await self?.emitProductsFetched(success: true, products: productDicts)
 
             } catch {
-                GD.print("[GodotIap] fetchProducts error: \(error.localizedDescription)")
+                GodotIapLog.failure("fetchProducts", error: error)
                 await self?.emitProductsFetched(success: false, error: error.localizedDescription)
             }
         }
@@ -195,7 +196,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func requestPurchase(sku: String) -> String {
-        GD.print("[GodotIap] Requesting purchase for SKU: \(sku)")
+        GodotIapLog.payload("requestPurchase", payload: sku)
 
         Task { [weak self] in
             do {
@@ -243,14 +244,14 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func finishTransaction(argsJson: String) -> String {
-        GD.print("[GodotIap] Finishing transaction: \(argsJson)")
+        GodotIapLog.payload("finishTransaction", payload: argsJson)
 
         Task { [weak self] in
             do {
                 guard let data = argsJson.data(using: .utf8),
                       let args = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let purchaseDict = args["purchase"] as? [String: Any] else {
-                    GD.print("[GodotIap] finishTransaction: Invalid arguments")
+                    GodotIapLog.warn("finishTransaction: Invalid arguments")
                     return
                 }
 
@@ -260,9 +261,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 let purchaseInput = try OpenIapSerialization.purchaseInput(from: purchaseDict)
 
                 try await self?.openIap.finishTransaction(purchase: purchaseInput, isConsumable: isConsumable)
-                GD.print("[GodotIap] Transaction finished successfully")
+                GodotIapLog.result("finishTransaction", value: true)
             } catch {
-                GD.print("[GodotIap] finishTransaction error: \(error.localizedDescription)")
+                GodotIapLog.failure("finishTransaction", error: error)
             }
         }
 
@@ -271,7 +272,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func restorePurchases() -> String {
-        GD.print("[GodotIap] Restoring purchases...")
+        GodotIapLog.payload("Restoring purchases", payload: nil)
 
         Task { [weak self] in
             do {
@@ -284,7 +285,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     await self?.emitPurchaseUpdated(purchase: purchase)
                 }
 
-                GD.print("[GodotIap] Restore completed with \(purchases.count) purchases")
+                GodotIapLog.debug("[GodotIap] Restore completed with \(purchases.count) purchases")
             } catch {
                 await self?.emitPurchaseError(code: "RESTORE_FAILED", message: error.localizedDescription)
             }
@@ -295,7 +296,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func getAvailablePurchases() -> String {
-        GD.print("[GodotIap] Getting available purchases...")
+        GodotIapLog.payload("Getting available purchases", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -313,7 +314,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                 }
             } catch {
-                GD.print("[GodotIap] getAvailablePurchases error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] getAvailablePurchases error: \(error.localizedDescription)")
             }
         }
 
@@ -324,7 +325,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func getActiveSubscriptions(subscriptionIdsJson: String) -> String {
-        GD.print("[GodotIap] Getting active subscriptions...")
+        GodotIapLog.payload("Getting active subscriptions", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -357,7 +358,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                 }
             } catch {
-                GD.print("[GodotIap] getActiveSubscriptions error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] getActiveSubscriptions error: \(error.localizedDescription)")
             }
         }
 
@@ -366,7 +367,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func hasActiveSubscriptions(subscriptionIdsJson: String) -> String {
-        GD.print("[GodotIap] Checking active subscriptions...")
+        GodotIapLog.payload("Checking active subscriptions", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -387,7 +388,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] hasActiveSubscriptions error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] hasActiveSubscriptions error: \(error.localizedDescription)")
             }
         }
 
@@ -398,7 +399,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func syncIOS() -> String {
-        GD.print("[GodotIap] Syncing with App Store...")
+        GodotIapLog.payload("Syncing with App Store", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -409,9 +410,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["success"] = Variant(result)
                     self.productsFetched.emit(dict)
                 }
-                GD.print("[GodotIap] Sync completed: \(result)")
+                GodotIapLog.debug("[GodotIap] Sync completed: \(result)")
             } catch {
-                GD.print("[GodotIap] syncIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] syncIOS error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(false)
@@ -426,7 +427,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func clearTransactionIOS() -> String {
-        GD.print("[GodotIap] Clearing transactions...")
+        GodotIapLog.payload("Clearing transactions", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -437,9 +438,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["success"] = Variant(result)
                     self.productsFetched.emit(dict)
                 }
-                GD.print("[GodotIap] Clear transactions completed: \(result)")
+                GodotIapLog.debug("[GodotIap] Clear transactions completed: \(result)")
             } catch {
-                GD.print("[GodotIap] clearTransactionIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] clearTransactionIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -448,7 +449,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func getPendingTransactionsIOS() -> String {
-        GD.print("[GodotIap] Getting pending transactions...")
+        GodotIapLog.payload("Getting pending transactions", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -466,7 +467,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                 }
             } catch {
-                GD.print("[GodotIap] getPendingTransactionsIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] getPendingTransactionsIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -475,7 +476,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func presentCodeRedemptionSheetIOS() -> String {
-        GD.print("[GodotIap] Presenting code redemption sheet...")
+        GodotIapLog.payload("Presenting code redemption sheet", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -487,7 +488,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] presentCodeRedemptionSheetIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] presentCodeRedemptionSheetIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -496,7 +497,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func showManageSubscriptionsIOS() -> String {
-        GD.print("[GodotIap] Showing manage subscriptions...")
+        GodotIapLog.payload("Showing manage subscriptions", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -514,7 +515,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                 }
             } catch {
-                GD.print("[GodotIap] showManageSubscriptionsIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] showManageSubscriptionsIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -523,7 +524,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func beginRefundRequestIOS(sku: String) -> String {
-        GD.print("[GodotIap] Beginning refund request for: \(sku)")
+        GodotIapLog.debug("[GodotIap] Beginning refund request for: \(sku)")
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -536,7 +537,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] beginRefundRequestIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] beginRefundRequestIOS error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(false)
@@ -551,7 +552,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func currentEntitlementIOS(sku: String) -> String {
-        GD.print("[GodotIap] Getting current entitlement for: \(sku)")
+        GodotIapLog.debug("[GodotIap] Getting current entitlement for: \(sku)")
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -577,7 +578,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                 }
             } catch {
-                GD.print("[GodotIap] currentEntitlementIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] currentEntitlementIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -586,7 +587,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func latestTransactionIOS(sku: String) -> String {
-        GD.print("[GodotIap] Getting latest transaction for: \(sku)")
+        GodotIapLog.debug("[GodotIap] Getting latest transaction for: \(sku)")
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -612,7 +613,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                 }
             } catch {
-                GD.print("[GodotIap] latestTransactionIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] latestTransactionIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -621,7 +622,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func getStorefrontIOS() -> String {
-        GD.print("[GodotIap] Getting storefront...")
+        GodotIapLog.payload("Getting storefront", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -634,7 +635,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] getStorefrontIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] getStorefrontIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -643,7 +644,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func getAppTransactionIOS() -> String {
-        GD.print("[GodotIap] Getting app transaction...")
+        GodotIapLog.payload("Getting app transaction", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -676,7 +677,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                 }
             } catch {
-                GD.print("[GodotIap] getAppTransactionIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] getAppTransactionIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -685,7 +686,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func subscriptionStatusIOS(sku: String) -> String {
-        GD.print("[GodotIap] Getting subscription status for: \(sku)")
+        GodotIapLog.debug("[GodotIap] Getting subscription status for: \(sku)")
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -705,7 +706,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                 }
             } catch {
-                GD.print("[GodotIap] subscriptionStatusIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] subscriptionStatusIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -714,7 +715,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func isEligibleForIntroOfferIOS(groupId: String) -> String {
-        GD.print("[GodotIap] Checking intro offer eligibility for group: \(groupId)")
+        GodotIapLog.debug("[GodotIap] Checking intro offer eligibility for group: \(groupId)")
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -727,7 +728,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] isEligibleForIntroOfferIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] isEligibleForIntroOfferIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -736,7 +737,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func getPromotedProductIOS() -> String {
-        GD.print("[GodotIap] Getting promoted product...")
+        GodotIapLog.payload("Getting promoted product", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -762,7 +763,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     }
                 }
             } catch {
-                GD.print("[GodotIap] getPromotedProductIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] getPromotedProductIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -771,7 +772,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func requestPurchaseOnPromotedProductIOS() -> String {
-        GD.print("[GodotIap] Requesting purchase on promoted product...")
+        GodotIapLog.payload("Requesting purchase on promoted product", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -783,7 +784,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] requestPurchaseOnPromotedProductIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] requestPurchaseOnPromotedProductIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -792,7 +793,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func canPresentExternalPurchaseNoticeIOS() -> String {
-        GD.print("[GodotIap] Checking if can present external purchase notice...")
+        GodotIapLog.payload("Checking if can present external purchase notice", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -805,7 +806,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] canPresentExternalPurchaseNoticeIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] canPresentExternalPurchaseNoticeIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -814,7 +815,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func presentExternalPurchaseNoticeSheetIOS() -> String {
-        GD.print("[GodotIap] Presenting external purchase notice sheet...")
+        GodotIapLog.payload("Presenting external purchase notice sheet", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -827,7 +828,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] presentExternalPurchaseNoticeSheetIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] presentExternalPurchaseNoticeSheetIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -836,7 +837,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func presentExternalPurchaseLinkIOS(url: String) -> String {
-        GD.print("[GodotIap] Presenting external purchase link: \(url)")
+        GodotIapLog.debug("[GodotIap] Presenting external purchase link: \(url)")
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -852,7 +853,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] presentExternalPurchaseLinkIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] presentExternalPurchaseLinkIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -861,7 +862,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func deepLinkToSubscriptions(optionsJson: String) -> String {
-        GD.print("[GodotIap] Deep linking to subscriptions...")
+        GodotIapLog.payload("Deep linking to subscriptions", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -883,7 +884,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] deepLinkToSubscriptions error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] deepLinkToSubscriptions error: \(error.localizedDescription)")
             }
         }
 
@@ -894,7 +895,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func verifyPurchase(propsJson: String) -> String {
-        GD.print("[GodotIap] Verifying purchase...")
+        GodotIapLog.payload("Verifying purchase", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -925,7 +926,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] verifyPurchase error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] verifyPurchase error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(false)
@@ -940,7 +941,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func getReceiptDataIOS() -> String {
-        GD.print("[GodotIap] Getting receipt data...")
+        GodotIapLog.payload("Getting receipt data", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -953,7 +954,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] getReceiptDataIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] getReceiptDataIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -962,7 +963,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func isTransactionVerifiedIOS(sku: String) -> String {
-        GD.print("[GodotIap] Checking if transaction is verified for: \(sku)")
+        GodotIapLog.debug("[GodotIap] Checking if transaction is verified for: \(sku)")
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -975,7 +976,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] isTransactionVerifiedIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] isTransactionVerifiedIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -984,7 +985,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func getTransactionJwsIOS(sku: String) -> String {
-        GD.print("[GodotIap] Getting transaction JWS for: \(sku)")
+        GodotIapLog.debug("[GodotIap] Getting transaction JWS for: \(sku)")
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -997,7 +998,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] getTransactionJwsIOS error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] getTransactionJwsIOS error: \(error.localizedDescription)")
             }
         }
 
@@ -1006,7 +1007,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
 
     @Callable
     public func verifyPurchaseWithProvider(propsJson: String) -> String {
-        GD.print("[GodotIap] Verifying purchase with provider...")
+        GodotIapLog.payload("Verifying purchase with provider", payload: nil)
 
         Task { [weak self] in
             guard let self = self else { return }
@@ -1038,7 +1039,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     self.productsFetched.emit(dict)
                 }
             } catch {
-                GD.print("[GodotIap] verifyPurchaseWithProvider error: \(error.localizedDescription)")
+                GodotIapLog.debug("[GodotIap] verifyPurchaseWithProvider error: \(error.localizedDescription)")
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["success"] = Variant(false)

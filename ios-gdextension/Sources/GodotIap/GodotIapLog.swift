@@ -32,9 +32,14 @@ import Foundation
 import os
 #endif
 
-/// Logging utility for GodotIap plugin.
+/// Internal logging utility for GodotIap plugin.
+/// This enum is intentionally `internal` as it's only used within the GodotIap module.
+///
 /// Logs are only visible when DEBUG is set to true (during library development).
 /// Token values are automatically hidden for security.
+///
+/// - Note: `setEnabled` and `setHandler` should be called once at app startup
+///   before any logging occurs. They are not thread-safe for concurrent writes.
 enum GodotIapLog {
     enum Level: String {
         case debug

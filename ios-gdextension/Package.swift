@@ -24,7 +24,7 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "SwiftGodot", path: "../SwiftGodot"),
-        .package(url: "https://github.com/hyodotdev/openiap.git", from: "1.3.9")
+        .package(url: "https://github.com/hyodotdev/openiap.git", .upToNextMinor(from: "1.3.9"))
     ],
     targets: [
         .target(

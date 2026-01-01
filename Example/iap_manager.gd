@@ -27,6 +27,7 @@ const PRODUCT_PREMIUM_YEAR := "dev.hyo.martie.premium_year"
 var store_connected := false
 var products: Dictionary = {}  # product_id -> Types.ProductAndroid or Types.ProductIOS
 var is_loading := false
+var _processed_transactions: Dictionary = {}  # transactionId -> bool (to prevent duplicate processing)
 
 
 func _ready() -> void:
@@ -110,10 +111,20 @@ func _process_products(products_array: Array) -> void:
 func _on_purchase_updated(purchase: Dictionary) -> void:
 	var product_id: String = purchase.get("productId", "")
 	var purchase_state: String = purchase.get("purchaseState", "")
+	var transaction_id: String = purchase.get("transactionId", "")
 
-	print("[IAPManager] Purchase updated: %s (state: %s)" % [product_id, purchase_state])
+	print("[IAPManager] Purchase updated: %s (state: %s, txn: %s)" % [product_id, purchase_state, transaction_id])
+
+	# Prevent duplicate processing of the same transaction
+	if transaction_id != "" and _processed_transactions.has(transaction_id):
+		print("[IAPManager] Transaction already processed, skipping: %s" % transaction_id)
+		return
 
 	if purchase_state == "Purchased" or purchase_state == "purchased":
+		# Mark transaction as processed to prevent duplicates
+		if transaction_id != "":
+			_processed_transactions[transaction_id] = true
+
 		# Finish transaction (consumables: 10bulbs, 30bulbs)
 		var consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
 
@@ -126,7 +137,13 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 func _on_purchase_error(error: Dictionary) -> void:
 	var message = error.get("message", "Unknown error")
 	var code = error.get("code", "")
-	push_error("[IAPManager] Purchase error: %s (code: %s)" % [message, code])
+
+	# User cancellation is not a real error, just log it
+	if code == "user-cancelled" or code == "USER_CANCELLED":
+		print("[IAPManager] Purchase cancelled by user")
+	else:
+		push_error("[IAPManager] Purchase error: %s (code: %s)" % [message, code])
+
 	purchase_failed.emit("", message)
 
 

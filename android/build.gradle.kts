@@ -62,7 +62,7 @@ tasks.register<Copy>("copyDebugAarToAddons") {
     dependsOn("assembleDebug")
     from(layout.buildDirectory.dir("outputs/aar"))
     include("${project.name}-debug.aar")
-    into("../Example/addons/godot-iap/android/")
+    into("../addons/godot-iap/android/")
     rename { "${pluginName}.debug.aar" }
 }
 
@@ -70,6 +70,6 @@ tasks.register<Copy>("copyReleaseAarToAddons") {
     dependsOn("assembleRelease")
     from(layout.buildDirectory.dir("outputs/aar"))
     include("${project.name}-release.aar")
-    into("../Example/addons/godot-iap/android/")
+    into("../addons/godot-iap/android/")
     rename { "${pluginName}.release.aar" }
 }

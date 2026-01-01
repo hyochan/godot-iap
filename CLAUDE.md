@@ -10,6 +10,10 @@ godot-iap is a Godot 4.x plugin for in-app purchases following the [OpenIAP](htt
 
 ```text
 godot-iap/
+├── addons/godot-iap/  # Plugin files (for Asset Library)
+│   ├── bin/           # Pre-built binaries (iOS/Android)
+│   ├── android/       # Android AAR files
+│   └── *.gd           # GDScript files
 ├── android/           # Android plugin (Kotlin)
 │   ├── src/main/
 │   │   ├── java/      # Kotlin sources
@@ -19,7 +23,7 @@ godot-iap/
 │   ├── Sources/
 │   └── Package.swift
 ├── Example/           # Godot example project
-│   ├── addons/godot-iap/
+│   ├── addons -> ../addons  # Symlink to root addons
 │   ├── main.gd
 │   └── project.godot
 └── .vscode/           # Development tools

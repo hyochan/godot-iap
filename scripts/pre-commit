@@ -21,8 +21,8 @@ if [ -n "$IOS_FILES_CHANGED" ]; then
         echo -e "${GREEN}✓ iOS framework built successfully${NC}"
 
         # Check if framework exists
-        if [ -d "Example/addons/godot-iap/bin/ios/GodotIap.framework" ]; then
-            echo -e "${GREEN}✓ Framework verified at Example/addons/godot-iap/bin/ios/${NC}"
+        if [ -d "addons/godot-iap/bin/ios/GodotIap.framework" ]; then
+            echo -e "${GREEN}✓ Framework verified at addons/godot-iap/bin/ios/${NC}"
         else
             echo -e "${RED}✗ Framework not found after build${NC}"
             exit 1

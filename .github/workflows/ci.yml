@@ -64,14 +64,14 @@ jobs:
           echo "Checking pre-built iOS frameworks..."
 
           # Check GodotIap framework
-          if [ ! -f "Example/addons/godot-iap/bin/ios/GodotIap.framework/GodotIap" ]; then
+          if [ ! -f "addons/godot-iap/bin/ios/GodotIap.framework/GodotIap" ]; then
             echo "Error: GodotIap.framework not found"
             echo "iOS frameworks should be built locally via pre-commit hook"
             exit 1
           fi
 
           # Check SwiftGodotRuntime framework
-          if [ ! -f "Example/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime" ]; then
+          if [ ! -f "addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime" ]; then
             echo "Error: SwiftGodotRuntime.framework not found"
             exit 1
           fi
@@ -81,8 +81,8 @@ jobs:
           # Show framework info
           echo ""
           echo "Framework sizes:"
-          ls -lh Example/addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
-          ls -lh Example/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
+          ls -lh addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
+          ls -lh addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
 
   # GDScript Validation
   gdscript-check:

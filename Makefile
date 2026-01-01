@@ -17,7 +17,7 @@ IOS_DIR := $(PROJECT_ROOT)/ios
 IOS_GDEXT_DIR := $(PROJECT_ROOT)/ios-gdextension
 ANDROID_DIR := $(PROJECT_ROOT)/android
 EXAMPLE_DIR := $(PROJECT_ROOT)/Example
-ADDON_DIR := $(PROJECT_ROOT)/Example/addons/godot-iap
+ADDON_DIR := $(PROJECT_ROOT)/addons/godot-iap
 BIN_DIR := $(ADDON_DIR)/bin
 IOS_EXPORT_DIR := $(EXAMPLE_DIR)/ios
 
@@ -48,13 +48,19 @@ help:
 	@echo "  make export-ios    - Export iOS Xcode project only"
 	@echo "  make export-android - Export Android APK only"
 	@echo ""
-	@echo "Test commands (TestProject - release testing):"
-	@echo "  make test-android  - Copy binaries to TestProject and run on Android"
-	@echo "  make test-ios      - Copy binaries to TestProject and open in Xcode"
+	@echo "Test commands (TestProject - local build testing):"
+	@echo "  make test-android  - Copy local binaries to TestProject and run on Android"
+	@echo "  make test-ios      - Copy local binaries to TestProject and open in Xcode"
+	@echo ""
+	@echo "Release commands (TestProject - GitHub Release testing):"
+	@echo "  make release-android - Download release zip, export and run on Android"
+	@echo "  make release-ios     - Download release zip, export and open in Xcode"
+	@echo "  make release-setup   - Download release zip and setup TestProject only"
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  GODOT_VERSION  - Godot version to use (default: $(GODOT_VERSION))"
 	@echo "  GODOT          - Path to Godot executable (default: $(GODOT))"
+	@echo "  RELEASE_TAG    - GitHub release tag to test (default: latest)"
 
 # Download godot-lib.aar for Android builds
 setup:
@@ -280,6 +286,86 @@ export-test-ios: test-setup
 
 # Test iOS - Build, copy to TestProject, export and open in Xcode
 test-ios: export-test-ios
+	@echo "$(GREEN)Opening Xcode...$(NC)"
+	@open $(TEST_IOS_EXPORT_DIR)/Martie.xcodeproj
+	@echo ""
+	@echo "$(YELLOW)In Xcode:$(NC)"
+	@echo "  1. Select your connected iOS device"
+	@echo "  2. Press Cmd+R to build and run"
+	@echo "  3. Trust the developer certificate on your device if needed"
+
+# ============================================
+# Release Testing (from GitHub Release zip)
+# ============================================
+
+RELEASE_TAG ?= $(shell gh release view --repo hyochan/godot-iap --json tagName -q '.tagName' 2>/dev/null || echo "1.0.0-beta.1")
+RELEASE_ZIP_NAME = godot-iap-$(RELEASE_TAG).zip
+RELEASE_ZIP_URL = https://github.com/hyochan/godot-iap/releases/download/$(RELEASE_TAG)/$(RELEASE_ZIP_NAME)
+
+# Download and extract release zip to TestProject (simulates Asset Library install)
+release-setup:
+	@echo "$(GREEN)Setting up TestProject from GitHub Release...$(NC)"
+	@echo "$(YELLOW)Release: $(RELEASE_TAG)$(NC)"
+	@rm -rf $(TEST_PROJECT_DIR)
+	@mkdir -p $(TEST_PROJECT_DIR)
+	@echo "$(GREEN)Downloading release zip...$(NC)"
+	@curl -L -o /tmp/$(RELEASE_ZIP_NAME) "$(RELEASE_ZIP_URL)" || \
+		(echo "$(RED)Failed to download release. Check if $(RELEASE_TAG) exists.$(NC)" && exit 1)
+	@echo "$(GREEN)Extracting addons...$(NC)"
+	@unzip -q /tmp/$(RELEASE_ZIP_NAME) -d $(TEST_PROJECT_DIR)/
+	@rm /tmp/$(RELEASE_ZIP_NAME)
+	@echo "$(GREEN)Copying project files from Example...$(NC)"
+	@cp $(EXAMPLE_DIR)/project.godot $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/main.gd $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/main.tscn $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/iap_manager.gd $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/*.svg $(TEST_PROJECT_DIR)/
+	@cp $(EXAMPLE_DIR)/export_presets.cfg $(TEST_PROJECT_DIR)/
+	@cp -R $(EXAMPLE_DIR)/player.tscn $(TEST_PROJECT_DIR)/ 2>/dev/null || true
+	@cp -R $(EXAMPLE_DIR)/obstacle.tscn $(TEST_PROJECT_DIR)/ 2>/dev/null || true
+	@cp -R $(EXAMPLE_DIR)/player.gd $(TEST_PROJECT_DIR)/ 2>/dev/null || true
+	@cp -R $(EXAMPLE_DIR)/obstacle.gd $(TEST_PROJECT_DIR)/ 2>/dev/null || true
+	@sed -i '' 's/config\/name=.*/config\/name="GodotIap Release Test"/' $(TEST_PROJECT_DIR)/project.godot
+	@echo "$(GREEN)Copying Android build template...$(NC)"
+	@mkdir -p $(TEST_PROJECT_DIR)/android
+	@if [ -d "$(EXAMPLE_DIR)/android/build" ]; then \
+		cp -R $(EXAMPLE_DIR)/android/build $(TEST_PROJECT_DIR)/android/; \
+		cp $(EXAMPLE_DIR)/android/.build_version $(TEST_PROJECT_DIR)/android/ 2>/dev/null || true; \
+	fi
+	@echo "$(GREEN)✓ TestProject ready with release $(RELEASE_TAG)$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Addon contents:$(NC)"
+	@ls -la $(TEST_ADDON_DIR)/ 2>/dev/null || true
+
+# Export release TestProject Android APK
+export-release-android: release-setup
+	@echo "$(GREEN)Exporting Release TestProject Android APK...$(NC)"
+	@mkdir -p $(TEST_PROJECT_DIR)/android
+	@cd $(TEST_PROJECT_DIR) && $(GODOT) --headless --export-debug "Android" android/Martie.apk
+	@echo "$(GREEN)✓ APK exported to $(TEST_PROJECT_DIR)/android/Martie.apk$(NC)"
+
+# Test release Android - Download release, export and run
+release-android: export-release-android
+	@echo "$(GREEN)Installing APK on device...$(NC)"
+	@~/Library/Android/sdk/platform-tools/adb install -r $(TEST_PROJECT_DIR)/android/Martie.apk
+	@echo "$(GREEN)✓ APK installed$(NC)"
+	@echo "$(GREEN)Launching app...$(NC)"
+	@~/Library/Android/sdk/platform-tools/adb shell monkey -p dev.hyo.martie -c android.intent.category.LAUNCHER 1
+	@echo "$(GREEN)✓ App launched$(NC)"
+
+# Export release TestProject iOS Xcode project
+export-release-ios: release-setup
+	@echo "$(GREEN)Exporting Release TestProject iOS Xcode project...$(NC)"
+	@mkdir -p $(TEST_IOS_EXPORT_DIR)
+	@cd $(TEST_PROJECT_DIR) && $(GODOT) --headless --export-debug "iOS" ios/Martie.xcodeproj
+	@echo "$(GREEN)Fixing iOS frameworks...$(NC)"
+	@cp $(TEST_ADDON_DIR)/bin/ios/GodotIap.framework/Info.plist $(TEST_IOS_EXPORT_DIR)/Martie/addons/godot-iap/bin/ios/GodotIap.framework/ 2>/dev/null || true
+	@cp $(TEST_ADDON_DIR)/bin/ios/SwiftGodotRuntime.framework/Info.plist $(TEST_IOS_EXPORT_DIR)/Martie/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/ 2>/dev/null || true
+	@IOS_EXPORT_DIR=$(TEST_IOS_EXPORT_DIR) $(PROJECT_ROOT)/scripts/fix_ios_embed.sh
+	@echo "$(GREEN)✓ iOS project exported to $(TEST_IOS_EXPORT_DIR)$(NC)"
+
+# Test release iOS - Download release, export and open in Xcode
+release-ios: export-release-ios
 	@echo "$(GREEN)Opening Xcode...$(NC)"
 	@open $(TEST_IOS_EXPORT_DIR)/Martie.xcodeproj
 	@echo ""

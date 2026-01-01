@@ -51,7 +51,7 @@ jobs:
         id: version
         run: |
           # Get current version from plugin.cfg
-          CURRENT_VERSION=$(grep -E '^version=' Example/addons/godot-iap/plugin.cfg | cut -d'"' -f2)
+          CURRENT_VERSION=$(grep -E '^version=' addons/godot-iap/plugin.cfg | cut -d'"' -f2)
           echo "Current version: $CURRENT_VERSION"
 
           if [ "${{ inputs.version }}" = "custom" ]; then
@@ -89,8 +89,8 @@ jobs:
 
       - name: Update version in plugin.cfg
         run: |
-          sed -i '' 's/^version=.*/version="${{ steps.version.outputs.VERSION }}"/' Example/addons/godot-iap/plugin.cfg
-          cat Example/addons/godot-iap/plugin.cfg
+          sed -i '' 's/^version=.*/version="${{ steps.version.outputs.VERSION }}"/' addons/godot-iap/plugin.cfg
+          cat addons/godot-iap/plugin.cfg
 
       - name: Sync OpenIAP versions
         run: |
@@ -113,13 +113,13 @@ jobs:
       # iOS frameworks are pre-built and committed to git for faster CI
       - name: Verify iOS Frameworks
         run: |
-          if [ ! -d "Example/addons/godot-iap/bin/ios/GodotIap.framework" ]; then
+          if [ ! -d "addons/godot-iap/bin/ios/GodotIap.framework" ]; then
             echo "Error: iOS frameworks not found in repository"
             echo "Please run 'make ios' locally and commit the frameworks"
             exit 1
           fi
           echo "✓ iOS frameworks found"
-          ls -la Example/addons/godot-iap/bin/ios/
+          ls -la addons/godot-iap/bin/ios/
 
       - name: Prepare addon directory
         run: |
@@ -127,11 +127,13 @@ jobs:
           mkdir -p dist/addons/godot-iap/bin/ios
 
           # Copy GDScript files
-          cp Example/addons/godot-iap/*.gd dist/addons/godot-iap/
-          cp Example/addons/godot-iap/plugin.cfg dist/addons/godot-iap/
+          cp addons/godot-iap/*.gd dist/addons/godot-iap/
+          cp addons/godot-iap/plugin.cfg dist/addons/godot-iap/
 
-          # Copy Android AAR
+          # Copy Android AARs (both release and debug for export compatibility)
           cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.release.aar
+          # Create debug AAR from release (Godot needs debug.aar for debug exports)
+          cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.debug.aar
 
           # Create GDAP file for Android plugin with exact version from openiap-versions.json
           OPENIAP_GOOGLE_VERSION=$(cat openiap-versions.json | grep '"google"' | cut -d'"' -f4)
@@ -147,8 +149,8 @@ jobs:
           EOF
 
           # Copy iOS frameworks (pre-built and committed to git)
-          cp -R Example/addons/godot-iap/bin/ios/GodotIap.framework dist/addons/godot-iap/bin/ios/
-          cp -R Example/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/ios/
+          cp -R addons/godot-iap/bin/ios/GodotIap.framework dist/addons/godot-iap/bin/ios/
+          cp -R addons/godot-iap/bin/ios/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/ios/
 
           # Create GDExtension config for iOS
           cat > dist/addons/godot-iap/bin/ios/godot_iap.gdextension << 'EOF'
@@ -175,7 +177,7 @@ jobs:
 
       - name: Commit version bump and create tag
         run: |
-          git add Example/addons/godot-iap/plugin.cfg
+          git add addons/godot-iap/plugin.cfg
           # Only commit if there are staged changes
           if git diff --cached --quiet; then
             echo "No version changes to commit (version already set)"

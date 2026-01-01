@@ -38,7 +38,7 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "🧪 Test iOS: Release Build",
+      "name": "📦 Release iOS: Local Build",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "make",
@@ -47,11 +47,29 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "🧪 Test Android: Release Build",
+      "name": "📦 Release Android: Local Build",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "make",
       "runtimeArgs": ["test-android"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "📦 Release iOS: GitHub Release",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["release-ios"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "📦 Release Android: GitHub Release",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["release-android"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
     },

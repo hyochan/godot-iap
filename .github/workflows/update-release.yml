@@ -1,0 +1,120 @@
+name: Update Release Asset
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to update (e.g., 1.0.0-beta.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Sync OpenIAP versions
+        run: |
+          chmod +x scripts/sync-versions.sh
+          ./scripts/sync-versions.sh
+
+      - name: Download godot-lib.aar
+        run: |
+          mkdir -p android/libs
+          curl -L -o android/libs/godot-lib.aar \
+            "https://github.com/godotengine/godot/releases/download/4.3-stable/godot-lib.4.3.stable.template_release.aar"
+
+      - name: Build Android AAR
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Verify iOS Frameworks
+        run: |
+          if [ ! -d "addons/godot-iap/bin/ios/GodotIap.framework" ]; then
+            echo "Error: iOS frameworks not found in repository"
+            exit 1
+          fi
+          echo "✓ iOS frameworks found"
+          ls -la addons/godot-iap/bin/ios/
+
+      - name: Prepare addon directory
+        run: |
+          mkdir -p dist/addons/godot-iap/android
+          mkdir -p dist/addons/godot-iap/bin/ios
+
+          # Copy GDScript files
+          cp addons/godot-iap/*.gd dist/addons/godot-iap/
+          cp addons/godot-iap/plugin.cfg dist/addons/godot-iap/
+
+          # Copy Android AARs (both release and debug for export compatibility)
+          cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.release.aar
+          cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.debug.aar
+
+          # Create GDAP file
+          OPENIAP_GOOGLE_VERSION=$(cat openiap-versions.json | grep '"google"' | cut -d'"' -f4)
+          cat > dist/addons/godot-iap/android/GodotIap.gdap << EOF
+          [config]
+          name="GodotIap"
+          binary_type="local"
+          binary="GodotIap.release.aar"
+
+          [dependencies]
+          local=[]
+          remote=["com.android.billingclient:billing:7.1.1", "io.github.hyochan.openiap:openiap-google:${OPENIAP_GOOGLE_VERSION}"]
+          EOF
+
+          # Copy iOS frameworks
+          cp -R addons/godot-iap/bin/ios/GodotIap.framework dist/addons/godot-iap/bin/ios/
+          cp -R addons/godot-iap/bin/ios/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/ios/
+
+          # Create GDExtension config for iOS
+          cat > dist/addons/godot-iap/bin/ios/godot_iap.gdextension << 'EOF'
+          [configuration]
+          entry_symbol = "godot_iap_entry_point"
+          compatibility_minimum = "4.3"
+          supported_platforms = ["ios"]
+
+          [libraries]
+          ios.arm64 = "GodotIap.framework/GodotIap"
+          macos = ""
+          windows = ""
+          linux = ""
+
+          [dependencies]
+          ios.arm64 = {"SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
+          EOF
+
+      - name: Create release zip
+        run: |
+          cd dist
+          zip -r ../godot-iap-${{ inputs.tag }}.zip addons
+
+      - name: Delete old asset and upload new one
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Delete existing zip asset if exists
+          gh release view ${{ inputs.tag }} --json assets -q '.assets[].name' | \
+            grep -E '^godot-iap-.*\.zip$' | \
+            xargs -I {} gh release delete-asset ${{ inputs.tag }} {} --yes || true
+
+          # Upload new zip
+          gh release upload ${{ inputs.tag }} godot-iap-${{ inputs.tag }}.zip --clobber
+
+          echo "✓ Release ${{ inputs.tag }} updated with new zip"

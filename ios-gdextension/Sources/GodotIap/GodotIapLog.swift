@@ -24,6 +24,7 @@
 /* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
 /* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
 import Foundation
@@ -53,6 +54,10 @@ enum GodotIapLog {
     }()
 
     private static var customHandler: ((Level, String) -> Void)?
+
+    #if canImport(os)
+    private static let logger = Logger(subsystem: "dev.hyo.godot-iap", category: "GodotIap")
+    #endif
 
     static func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
@@ -88,7 +93,6 @@ enum GodotIapLog {
         }
 
         #if canImport(os)
-        let logger = Logger(subsystem: "dev.hyo.godot-iap", category: "GodotIap")
         let formatted = "[GodotIap] \(message)"
         switch level {
         case .debug:

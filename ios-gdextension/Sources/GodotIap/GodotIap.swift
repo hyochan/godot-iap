@@ -1094,12 +1094,12 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     @MainActor
     private func emitPurchaseUpdated(purchase: Purchase) {
         // Extract all required fields from the underlying type
-        var transactionId: String = ""
-        var purchaseId: String = ""
-        var transactionDate: Double = 0
-        var quantity: Int = 1
-        var isAutoRenewing: Bool = false
-        var store: String = "apple"
+        let transactionId: String
+        let purchaseId: String
+        let transactionDate: Double
+        let quantity: Int
+        let isAutoRenewing: Bool
+        let store: String
 
         switch purchase {
         case .purchaseIos(let p):

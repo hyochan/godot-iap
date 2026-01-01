@@ -59,22 +59,71 @@ make android
 
 ## Verify Installation
 
+Add `GodotIapWrapper` as a child node in your scene, then use this script:
+
 ```gdscript
 extends Node
 
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper
+
 func _ready():
-    if Engine.has_singleton("GodotIap"):
-        var iap = Engine.get_singleton("GodotIap")
-        print("Godot IAP is available!")
-        var result = iap.init_connection()
-        print("Init result: ", result)
-    else:
-        print("Godot IAP not available - only works on iOS/Android")
+    print("Godot IAP is available!")
+
+    # Connect signals
+    iap.connected.connect(_on_connected)
+    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_error.connect(_on_purchase_error)
+
+    # Initialize connection
+    var success = iap.init_connection()
+    print("Init result: ", success)
+
+func _on_connected():
+    print("Store connected!")
+
+func _on_purchase_updated(purchase: Dictionary):
+    print("Purchase: ", purchase)
+
+func _on_purchase_error(error: Dictionary):
+    print("Error: ", error)
 ```
 
 :::info Note
-The plugin is only available on iOS and Android. `Engine.has_singleton("GodotIap")` returns `false` in the editor and on desktop platforms.
+The native plugin is only available on iOS and Android. In the editor and on desktop platforms, the plugin runs in **mock mode** which allows you to test your integration logic without actual store connections.
 :::
+
+## Scene Setup
+
+The recommended way to use GodotIap is to add `GodotIapWrapper` as a child node in your scene:
+
+1. Open your main scene (or create an autoload scene for IAP management)
+2. Add a new node: **Add Child Node → Node**
+3. Attach the GodotIapWrapper script: **Load → addons/godot-iap/godot_iap.gd**
+4. Name it `GodotIapWrapper`
+5. Reference it in your script using `@onready var iap = $GodotIapWrapper`
+
+Alternatively, you can create the wrapper node programmatically:
+
+```gdscript
+extends Node
+
+const Types = preload("res://addons/godot-iap/types.gd")
+
+var iap
+
+func _ready():
+    # Create wrapper node dynamically
+    var wrapper = preload("res://addons/godot-iap/godot_iap.gd").new()
+    wrapper.name = "GodotIapWrapper"
+    add_child(wrapper)
+    iap = wrapper
+
+    # Now use iap as normal
+    iap.connected.connect(_on_connected)
+    iap.init_connection()
+```
 
 ## Next Steps
 

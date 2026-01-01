@@ -71,61 +71,61 @@ Get started with godot-iap in minutes:
 ```gdscript
 extends Node
 
-var iap: GodotIap
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper  # Add GodotIapWrapper as child node
 
 func _ready():
-    # Get the plugin instance
-    if Engine.has_singleton("GodotIap"):
-        iap = Engine.get_singleton("GodotIap")
-        _setup_signals()
-        _init_connection()
+    _setup_signals()
+    iap.init_connection()
 
 func _setup_signals():
     iap.purchase_updated.connect(_on_purchase_updated)
     iap.purchase_error.connect(_on_purchase_error)
-    iap.products_fetched.connect(_on_products_fetched)
-
-func _init_connection():
-    var result = iap.init_connection()
-    print("Init connection: ", result)
+    iap.connected.connect(_on_connected)
 ```
 
 ### Fetch Products
 
 ```gdscript
-func _on_init_success():
-    var product_ids = ["your.product.id", "your.premium.subscription"]
-    var skus_json = JSON.stringify(product_ids)
-    iap.fetch_products(skus_json, "inapp")  # or "subs" for subscriptions
+func _on_connected():
+    # Create a typed request
+    var request = Types.ProductRequest.new()
+    var skus: Array[String] = ["your.product.id", "your.subscription.id"]
+    request.skus = skus
+    request.type = Types.ProductQueryType.ALL  # or IN_APP, SUBS
 
-func _on_products_fetched(products_dict):
-    if products_dict.get("success", false):
-        var products_json = products_dict.get("productsJson", "[]")
-        var products = JSON.parse_string(products_json)
-        for product in products:
-            print("Product: ", product.title, " - ", product.displayPrice)
+    # Returns Array of typed ProductAndroid or ProductIOS
+    var products = iap.fetch_products(request)
+    for product in products:
+        print("Product: ", product.title, " - ", product.display_price)
 ```
 
 ### Handle Purchases
 
 ```gdscript
 func purchase_product(product_id: String):
-    var params = {
-        "sku": product_id,
-        "ios": { "quantity": 1 },
-        "android": { "skus": [product_id] }
-    }
-    iap.request_purchase(JSON.stringify(params))
+    var props = Types.RequestPurchaseProps.new()
+    props.type = Types.ProductQueryType.IN_APP
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = product_id
 
-func _on_purchase_updated(purchase_dict):
+    var purchase = iap.request_purchase(props)
+    if purchase:
+        print("Purchase initiated: ", purchase.product_id)
+
+func _on_purchase_updated(purchase_dict: Dictionary):
     var product_id = purchase_dict.get("productId", "")
-    var purchase_state = purchase_dict.get("purchaseState", "")
 
-    if purchase_state == "purchased":
-        # Verify on your server, then finish
-        iap.finish_transaction(JSON.stringify(purchase_dict), true)
+    # Finish the transaction (use finish_transaction_dict for Dictionary input)
+    var result = iap.finish_transaction_dict(purchase_dict, true)  # true = consumable
+    print("Transaction finished: ", result.success)
 
-func _on_purchase_error(error_dict):
+func _on_purchase_error(error_dict: Dictionary):
     print("Error: ", error_dict.get("code"), " - ", error_dict.get("message"))
 ```
 

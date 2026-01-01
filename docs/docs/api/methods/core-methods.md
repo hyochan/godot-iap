@@ -12,10 +12,25 @@ Core methods available on both iOS and Android platforms. All methods use typed 
 
 ## Setup
 
+Add `GodotIapWrapper` as a child node in your scene, then reference it in your script:
+
 ```gdscript
+extends Node
+
 # Load OpenIAP types
 const Types = preload("res://addons/godot-iap/types.gd")
+
+# Reference to GodotIapWrapper node
+@onready var iap = $GodotIapWrapper
+
+# Throughout this documentation, we use `iap` to reference the wrapper.
+# You can also use any variable name you prefer.
 ```
+
+:::info GodotIapPlugin Reference
+In the examples below, `GodotIapPlugin` refers to your reference to the `GodotIapWrapper` node.
+Replace it with your own variable name (e.g., `iap`, `$GodotIapWrapper`, or `IapManager` if using an autoload).
+:::
 
 ## Connection Methods
 

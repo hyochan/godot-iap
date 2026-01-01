@@ -34,6 +34,9 @@ extends Node
 # Load OpenIAP types for type-safe API
 const Types = preload("res://addons/godot-iap/types.gd")
 
+# GodotIapWrapper reference
+var iap: Node
+
 # Connection state
 var is_connected: bool = false
 
@@ -55,16 +58,24 @@ signal purchase_completed(product_id: String)
 signal purchase_failed(error: Dictionary)
 
 func _ready():
+    _setup_iap_node()
     _initialize_iap()
+
+func _setup_iap_node():
+    # Create GodotIapWrapper node dynamically for Autoload
+    var wrapper = preload("res://addons/godot-iap/godot_iap.gd").new()
+    wrapper.name = "GodotIapWrapper"
+    add_child(wrapper)
+    iap = wrapper
 
 func _initialize_iap():
     # Connect signals
-    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
-    GodotIapPlugin.purchase_error.connect(_on_purchase_error)
-    GodotIapPlugin.products_fetched.connect(_on_products_fetched)
+    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_error.connect(_on_purchase_error)
+    iap.products_fetched.connect(_on_products_fetched)
 
     # Initialize connection - returns bool
-    is_connected = GodotIapPlugin.init_connection()
+    is_connected = iap.init_connection()
 
     if is_connected:
         print("IAP connected successfully")
@@ -77,7 +88,7 @@ func _initialize_iap():
 
 func _check_pending_purchases():
     # Returns Array of typed purchase objects
-    var purchases = GodotIapPlugin.get_available_purchases()
+    var purchases = iap.get_available_purchases()
     for purchase in purchases:
         await _process_purchase(purchase)
 
@@ -88,7 +99,7 @@ func _load_products():
     request.type = Types.ProductQueryType.ALL
 
     # Returns Array of typed product objects
-    var fetched_products = GodotIapPlugin.fetch_products(request)
+    var fetched_products = iap.fetch_products(request)
     _process_products(fetched_products)
 
 func _process_products(fetched_products: Array):
@@ -153,7 +164,7 @@ func _process_purchase(purchase) -> void:
     else:
         purchase_input = Types.PurchaseInput.from_dict(purchase)
 
-    var result = GodotIapPlugin.finish_transaction(purchase_input, is_consumable)
+    var result = iap.finish_transaction(purchase_input, is_consumable)
     if result.success:
         print("Transaction finished for: ", product_id)
         purchase_completed.emit(product_id)
@@ -182,7 +193,7 @@ func buy_product(product_id: String):
     props.type = Types.ProductQueryType.IN_APP
 
     # Returns typed purchase object or null
-    var purchase = GodotIapPlugin.request_purchase(props)
+    var purchase = iap.request_purchase(props)
     if purchase:
         print("Purchase initiated: ", purchase.product_id)
 
@@ -192,7 +203,7 @@ func restore_purchases():
         return
 
     # Returns typed VoidResult
-    var result = GodotIapPlugin.restore_purchases()
+    var result = iap.restore_purchases()
     if result.success:
         print("Restore initiated")
 
@@ -467,7 +478,7 @@ GDScript doesn't support Union types like Dart's `sealed class`. Functions that 
 
 ```gdscript
 # fetch_products returns Array of typed products
-var products = GodotIapPlugin.fetch_products(request)
+var products = iap.fetch_products(request)
 for product in products:
     # On Android: product is Types.ProductAndroid
     # On iOS: product is Types.ProductIOS

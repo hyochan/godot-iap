@@ -11,47 +11,55 @@ import IapKitLink from '@site/src/uis/IapKitLink';
 
 <IapKitBanner />
 
-These cross-platform methods work on both iOS and Android. For StoreKit/Play-specific helpers, see the [iOS Specific](./ios-specific) and [Android Specific](./android-specific) sections.
+These cross-platform methods work on both iOS and Android using the **type-safe API**. For StoreKit/Play-specific helpers, see the [iOS Specific](./ios-specific) and [Android Specific](./android-specific) sections.
 
 - [`init_connection()`](#init_connection) — Initialize the store connection
 - [`end_connection()`](#end_connection) — End the store connection and cleanup
 - [`fetch_products()`](#fetch_products) — Fetch product metadata
-- [`fetch_subscriptions()`](#fetch_subscriptions) — Fetch subscription metadata
 - [`request_purchase()`](#request_purchase) — Start a purchase
 - [`finish_transaction()`](#finish_transaction) — Complete a transaction after validation
 - [`get_available_purchases()`](#get_available_purchases) — Restore non-consumables and subscriptions
 - [`deep_link_to_subscriptions()`](#deep_link_to_subscriptions) — Open native subscription management UI
 - [`verify_purchase()`](#verify_purchase) — Verify purchase with native OpenIAP implementation
 
+## Setup
+
+```gdscript
+extends Node
+
+# Load OpenIAP types for type-safe API
+const Types = preload("res://addons/godot-iap/types.gd")
+
+# Reference to GodotIapWrapper node (add as child in scene tree)
+@onready var iap = $GodotIapWrapper
+```
+
 ## init_connection()
 
 Initializes the connection to the store. This method must be called before any other store operations.
 
 ```gdscript
-var iap: GodotIap
-
 func _ready():
-    if Engine.has_singleton("GodotIap"):
-        iap = Engine.get_singleton("GodotIap")
-        _initialize()
+    _setup_signals()
+    _initialize()
+
+func _setup_signals():
+    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_error.connect(_on_purchase_error)
+    iap.products_fetched.connect(_on_products_fetched)
+    iap.connected.connect(_on_connected)
 
 func _initialize():
-    var result_json = iap.init_connection()
-    var result = JSON.parse_string(result_json)
+    # Returns bool - true if connection successful
+    var success = iap.init_connection()
 
-    if result.get("success", false):
+    if success:
         print("Store connection initialized")
     else:
-        print("Failed to initialize: ", result.get("error", ""))
+        print("Failed to initialize connection")
 ```
 
-**Returns:** JSON string
-
-```json
-{
-  "success": true
-}
-```
+**Returns:** `bool` - `true` if connection successful
 
 ## end_connection()
 
@@ -59,141 +67,122 @@ Ends the connection to the store and cleans up resources.
 
 ```gdscript
 func _cleanup():
-    var result_json = iap.end_connection()
-    var result = JSON.parse_string(result_json)
+    # Returns bool - true if disconnection successful
+    var success = iap.end_connection()
 
-    if result.get("success", false):
+    if success:
         print("Store connection ended")
 ```
 
-**Returns:** JSON string
-
-```json
-{
-  "success": true
-}
-```
+**Returns:** `bool` - `true` if disconnection successful
 
 ## fetch_products()
 
-Fetches in-app product information from the store.
+Fetches product information from the store using typed request.
 
 ```gdscript
 func load_products():
-    var product_ids = ["coins_100", "coins_500", "remove_ads"]
-    var result_json = iap.fetch_products(JSON.stringify(product_ids), "inapp")
-    var products = JSON.parse_string(result_json)
+    # Create typed ProductRequest
+    var request = Types.ProductRequest.new()
+    var skus: Array[String] = ["coins_100", "coins_500", "remove_ads"]
+    request.skus = skus
+    request.type = Types.ProductQueryType.ALL  # or IN_APP, SUBS
+
+    # Returns Array of Types.ProductAndroid or Types.ProductIOS
+    var products = iap.fetch_products(request)
 
     for product in products:
-        print("Product: ", product.productId)
-        print("Price: ", product.localizedPrice)
+        # Access typed properties directly
+        print("Product: ", product.id)
+        print("Price: ", product.display_price)
+        print("Title: ", product.title)
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `product_ids` | `String` | JSON array of product IDs |
-| `product_type` | `String` | Product type: `"inapp"` or `"subs"` |
+| `request` | `Types.ProductRequest` | Product request with SKUs and type |
 
-**Returns:** JSON array of products
-
-```json
-[
-  {
-    "productId": "coins_100",
-    "title": "100 Coins",
-    "description": "Get 100 coins",
-    "price": 0.99,
-    "localizedPrice": "$0.99",
-    "currency": "USD"
-  }
-]
-```
+**Returns:** `Array` of `Types.ProductAndroid` (Android) or `Types.ProductIOS` (iOS)
 
 :::tip Using Signals
-You can also use the `products_fetched` signal to receive products asynchronously:
+Products are also available through the `products_fetched` signal for async handling:
 
 ```gdscript
 func _ready():
     iap.products_fetched.connect(_on_products_fetched)
-    iap.fetch_products(JSON.stringify(["coins_100"]), "inapp")
 
-func _on_products_fetched(products: Array):
-    for product in products:
-        print("Product: ", product.productId)
+func _on_products_fetched(result: Dictionary):
+    if result.has("products"):
+        for product_dict in result["products"]:
+            print("Product: ", product_dict.get("id", ""))
 ```
 :::
 
-## fetch_subscriptions()
+## request_purchase()
 
-Fetches subscription information from the store.
+Initiates a purchase request for a product or subscription using typed props.
 
 ```gdscript
-func load_subscriptions():
-    var sub_ids = ["premium_monthly", "premium_yearly"]
-    var result_json = iap.fetch_subscriptions(JSON.stringify(sub_ids))
-    var subscriptions = JSON.parse_string(result_json)
+# Purchase a product
+func buy_product(product_id: String):
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
 
-    for sub in subscriptions:
-        print("Subscription: ", sub.productId)
-        print("Price: ", sub.localizedPrice)
+    # Android configuration
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
+
+    # iOS configuration
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = product_id
+
+    props.type = Types.ProductQueryType.IN_APP
+
+    # Returns Types.PurchaseAndroid, Types.PurchaseIOS, or null
+    var purchase = iap.request_purchase(props)
+
+    if purchase:
+        print("Purchase initiated: ", purchase.product_id)
+    # Purchase result also comes via purchase_updated signal
+
+# Purchase a subscription
+func buy_subscription(subscription_id: String, offer_token: String = ""):
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.type = Types.ProductQueryType.SUBS
+
+    # Android configuration (offer token required for subscriptions)
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [subscription_id]
+    props.request.google.skus = skus
+    if offer_token != "":
+        var offers: Array[Types.SubscriptionOfferAndroid] = []
+        var offer = Types.SubscriptionOfferAndroid.new()
+        offer.sku = subscription_id
+        offer.offer_token = offer_token
+        offers.append(offer)
+        props.request.google.subscription_offers = offers
+
+    # iOS configuration
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = subscription_id
+
+    iap.request_purchase(props)
 ```
 
 **Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `subscription_ids` | `String` | JSON array of subscription IDs |
+| `props` | `Types.RequestPurchaseProps` | Purchase request with platform-specific options |
 
-**Returns:** JSON array of subscriptions
-
-## request_purchase()
-
-Initiates a purchase request for a product or subscription.
-
-```gdscript
-# Purchase a product
-func buy_product(product_id: String):
-    var params = {
-        "sku": product_id,
-        "type": "inapp"
-    }
-    var result_json = iap.request_purchase(JSON.stringify(params))
-    var result = JSON.parse_string(result_json)
-
-    if result.get("success", false):
-        print("Purchase initiated")
-    # Purchase result comes via purchase_updated signal
-
-# Purchase a subscription
-func buy_subscription(subscription_id: String, offer_token: String = ""):
-    var params = {
-        "sku": subscription_id,
-        "type": "subs"
-    }
-
-    # Android: Add offer token if available
-    if OS.get_name() == "Android" and offer_token != "":
-        params["offerToken"] = offer_token
-
-    iap.request_purchase(JSON.stringify(params))
-```
-
-**Parameters (JSON object):**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `sku` | `String` | Product or subscription ID |
-| `type` | `String` | `"inapp"` or `"subs"` |
-| `offerToken` | `String` | (Android only) Subscription offer token |
-| `quantity` | `int` | (iOS only) Purchase quantity |
-| `appAccountToken` | `String` | (iOS only) User identifier |
-
-**Returns:** JSON string with result
+**Returns:** `Variant` - `Types.PurchaseAndroid`, `Types.PurchaseIOS`, or `null`
 
 :::warning Important
-`request_purchase` initiates the purchase flow but does not return the purchase result directly. Handle purchase outcomes through the `purchase_updated` and `purchase_error` signals.
+`request_purchase` initiates the purchase flow. Handle purchase outcomes through the `purchase_updated` and `purchase_error` signals.
 :::
 
 ## finish_transaction()
@@ -202,33 +191,38 @@ Completes a purchase transaction. Must be called after successful purchase verif
 
 ```gdscript
 func _on_purchase_updated(purchase: Dictionary):
-    # Validate receipt on your server first
+    # Validate receipt on your server first (recommended)
     var verified = await verify_on_server(purchase)
 
     if verified:
         # Grant purchase to user
         grant_purchase_to_user(purchase)
 
-        # Finish the transaction
-        var params = {
-            "purchase": purchase,
-            "isConsumable": is_consumable(purchase.productId)
-        }
-        var result_json = iap.finish_transaction(JSON.stringify(params))
-        var result = JSON.parse_string(result_json)
+        # Finish the transaction using Dictionary convenience method
+        var is_consumable = is_consumable_product(purchase.get("productId", ""))
+        var result = iap.finish_transaction_dict(purchase, is_consumable)
 
-        if result.get("success", false):
+        if result.success:
             print("Transaction completed")
+
+# Alternative: Using typed PurchaseInput
+func finish_with_typed_input(purchase: Dictionary):
+    var purchase_input = Types.PurchaseInput.from_dict(purchase)
+    var is_consumable = true
+    var result = iap.finish_transaction(purchase_input, is_consumable)
+
+    if result.success:
+        print("Transaction finished")
 ```
 
-**Parameters (JSON object):**
+**Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `purchase` | `Object` | The purchase object to finish |
-| `isConsumable` | `bool` | Whether the product is consumable |
+| `purchase` | `Types.PurchaseInput` or `Dictionary` | The purchase to finish |
+| `is_consumable` | `bool` | Whether the product is consumable |
 
-**Returns:** JSON string with result
+**Returns:** `Types.VoidResult` with `success` boolean
 
 ## get_available_purchases()
 
@@ -236,30 +230,22 @@ Retrieves available purchases for restoration (non-consumable products and subsc
 
 ```gdscript
 func restore_purchases():
-    var purchases_json = iap.get_available_purchases()
-    var purchases = JSON.parse_string(purchases_json)
+    # Returns Array of Types.PurchaseAndroid or Types.PurchaseIOS
+    var purchases = iap.get_available_purchases()
 
     for purchase in purchases:
+        # Access typed properties
+        print("Product: ", purchase.product_id)
+
         # Validate and restore each purchase
-        var is_valid = await verify_on_server(purchase)
+        var is_valid = await verify_on_server_typed(purchase)
         if is_valid:
-            grant_purchase_to_user(purchase)
+            grant_purchase_to_user_typed(purchase)
 
     print("Purchases restored")
 ```
 
-**Returns:** JSON array of purchases
-
-```json
-[
-  {
-    "productId": "remove_ads",
-    "transactionId": "1000000123456789",
-    "purchaseToken": "...",
-    "purchaseState": "purchased"
-  }
-]
-```
+**Returns:** `Array` of `Types.PurchaseAndroid` (Android) or `Types.PurchaseIOS` (iOS)
 
 **Platform behavior:**
 
@@ -272,78 +258,55 @@ Opens the platform-specific subscription management UI.
 
 ```gdscript
 func open_subscription_settings():
-    var options = {}
+    var options = Types.DeepLinkOptions.new()
 
     if OS.get_name() == "Android":
-        options["packageNameAndroid"] = "com.yourcompany.game"
-        options["skuAndroid"] = "premium_monthly"  # Optional
+        options.package_name_android = "com.yourcompany.game"
+        options.sku_android = "premium_monthly"  # Optional
 
-    var result_json = iap.deep_link_to_subscriptions(JSON.stringify(options))
-    var result = JSON.parse_string(result_json)
-
-    if result.get("success", false):
-        print("Subscription settings opened")
+    iap.deep_link_to_subscriptions(options)
 ```
 
-**Parameters (JSON object):**
+**Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `packageNameAndroid` | `String` | (Android) Package name |
-| `skuAndroid` | `String` | (Android, optional) Specific subscription SKU |
-
-**Returns:** JSON string with result
+| `options` | `Types.DeepLinkOptions` | Deep link options (optional) |
 
 ## verify_purchase()
 
 Verifies a purchase using the native OpenIAP implementation. This validates purchases using platform-specific methods.
 
 ```gdscript
-func verify(product_id: String, purchase: Dictionary):
-    var options = {}
+func verify(product_id: String, purchase):
+    var props = Types.VerifyPurchaseProps.new()
 
     if OS.get_name() == "iOS":
-        options["apple"] = {
-            "sku": product_id
-        }
+        props.apple = Types.VerifyPurchasePropsIOS.new()
+        props.apple.sku = product_id
     elif OS.get_name() == "Android":
-        options["google"] = {
-            "sku": product_id,
-            "packageName": "com.yourcompany.game",
-            "purchaseToken": purchase.purchaseToken,
-            "accessToken": await get_access_token_from_server(),
-            "isSub": false
-        }
+        props.google = Types.VerifyPurchasePropsAndroid.new()
+        props.google.sku = product_id
+        props.google.package_name = "com.yourcompany.game"
+        props.google.purchase_token = purchase.purchase_token
+        props.google.access_token = await get_access_token_from_server()
+        props.google.is_sub = false
 
-    var result_json = iap.verify_purchase(JSON.stringify(options))
-    var result = JSON.parse_string(result_json)
+    # Returns Types.VerifyPurchaseResultIOS or Types.VerifyPurchaseResultAndroid
+    var result = iap.verify_purchase(props)
 
-    if result.get("isValid", false):
+    if result and result.is_valid:
         print("Purchase verified!")
-        grant_purchase_to_user(purchase)
+        grant_purchase_to_user_typed(purchase)
 ```
 
-**Parameters (JSON object):**
+**Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `apple` | `Object` | iOS verification options |
-| `apple.sku` | `String` | Product SKU to validate |
-| `google` | `Object` | Android verification options |
-| `google.sku` | `String` | Product SKU to validate |
-| `google.packageName` | `String` | Android package name |
-| `google.purchaseToken` | `String` | Purchase token from purchase |
-| `google.accessToken` | `String` | OAuth2 access token |
-| `google.isSub` | `bool` | Whether product is a subscription |
+| `props` | `Types.VerifyPurchaseProps` | Verification options |
 
-**Returns:** JSON string with verification result
-
-```json
-{
-  "success": true,
-  "isValid": true
-}
-```
+**Returns:** `Types.VerifyPurchaseResultIOS` or `Types.VerifyPurchaseResultAndroid`, or `null`
 
 For external verification services with additional security, consider using <IapKitLink>IAPKit</IapKitLink>.
 
@@ -402,7 +365,7 @@ func verify_with_iapkit(purchase: Dictionary) -> Dictionary:
 func _on_purchase_updated(purchase: Dictionary):
     var state = purchase.get("purchaseState", "")
 
-    if state == "purchased":
+    if state == "purchased" or state == "Purchased":
         var verification = await verify_with_iapkit(purchase)
 
         if verification.get("isValid", false):
@@ -411,23 +374,20 @@ func _on_purchase_updated(purchase: Dictionary):
             match iapkit_state:
                 "entitled":
                     # User is entitled to the product
-                    grant_purchase(purchase.productId)
+                    grant_purchase(purchase.get("productId", ""))
                 "pending":
                     # Purchase is pending - wait for confirmation
                     print("Purchase pending")
                 "expired":
                     # Subscription has expired
-                    revoke_entitlement(purchase.productId)
+                    revoke_entitlement(purchase.get("productId", ""))
                 "inauthentic":
                     # Purchase could not be verified - possible fraud
                     print("Warning: Inauthentic purchase detected")
 
         # Always finish the transaction
-        var params = {
-            "purchase": purchase,
-            "isConsumable": is_consumable(purchase.productId)
-        }
-        iap.finish_transaction(JSON.stringify(params))
+        var is_consumable = is_consumable_product(purchase.get("productId", ""))
+        iap.finish_transaction_dict(purchase, is_consumable)
 ```
 
 ### IAPKit Purchase States
@@ -452,7 +412,7 @@ func _on_purchase_updated(purchase: Dictionary):
 
 ## Purchase Interface
 
-The purchase object structure returned from purchases:
+The purchase dictionary structure returned from `purchase_updated` signal:
 
 ```gdscript
 # Purchase Dictionary Structure
@@ -483,49 +443,57 @@ The purchase object structure returned from purchases:
 ```gdscript
 extends Node
 
-var iap: GodotIap
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper
+
 var products: Array = []
 
 func _ready():
-    if Engine.has_singleton("GodotIap"):
-        iap = Engine.get_singleton("GodotIap")
-        _setup_signals()
-        _initialize()
+    _setup_signals()
+    _initialize()
 
 func _setup_signals():
     iap.purchase_updated.connect(_on_purchase_updated)
     iap.purchase_error.connect(_on_purchase_error)
     iap.products_fetched.connect(_on_products_fetched)
+    iap.connected.connect(_on_connected)
 
 func _initialize():
-    var result = JSON.parse_string(iap.init_connection())
-    if result.get("success", false):
+    if iap.init_connection():
         _load_products()
 
 func _load_products():
-    var product_ids = ["coins_100", "remove_ads"]
-    iap.fetch_products(JSON.stringify(product_ids), "inapp")
+    var request = Types.ProductRequest.new()
+    var skus: Array[String] = ["coins_100", "remove_ads"]
+    request.skus = skus
+    request.type = Types.ProductQueryType.ALL
 
-func _on_products_fetched(fetched_products: Array):
-    products = fetched_products
+    products = iap.fetch_products(request)
     for product in products:
-        print("Loaded: ", product.productId, " - ", product.localizedPrice)
+        print("Loaded: ", product.id, " - ", product.display_price)
+
+func _on_connected():
+    print("Store connected")
+
+func _on_products_fetched(result: Dictionary):
+    # Handle async products fetch (iOS)
+    if result.has("products"):
+        for product_dict in result["products"]:
+            print("Fetched: ", product_dict.get("id", ""))
 
 func _on_purchase_updated(purchase: Dictionary):
     var state = purchase.get("purchaseState", "")
 
-    if state == "purchased":
+    if state == "purchased" or state == "Purchased":
         # Verify on server
         var verified = await verify_on_server(purchase)
         if verified:
-            grant_purchase(purchase.productId)
+            grant_purchase(purchase.get("productId", ""))
 
             # Finish transaction
-            var params = {
-                "purchase": purchase,
-                "isConsumable": is_consumable(purchase.productId)
-            }
-            iap.finish_transaction(JSON.stringify(params))
+            var is_consumable = is_consumable_product(purchase.get("productId", ""))
+            iap.finish_transaction_dict(purchase, is_consumable)
 
 func _on_purchase_error(error: Dictionary):
     var code = error.get("code", "")
@@ -536,11 +504,32 @@ func _on_purchase_error(error: Dictionary):
             print("Error: ", error.get("message", ""))
 
 func buy(product_id: String):
-    var params = {"sku": product_id, "type": "inapp"}
-    iap.request_purchase(JSON.stringify(params))
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.type = Types.ProductQueryType.IN_APP
+
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
+
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = product_id
+
+    iap.request_purchase(props)
 
 func restore():
-    var purchases = JSON.parse_string(iap.get_available_purchases())
+    var purchases = iap.get_available_purchases()
     for purchase in purchases:
-        grant_purchase(purchase.productId)
+        grant_purchase(purchase.product_id)
+
+func verify_on_server(purchase: Dictionary) -> bool:
+    # Implement server-side verification
+    return true
+
+func grant_purchase(product_id: String):
+    # Grant content to user
+    pass
+
+func is_consumable_product(product_id: String) -> bool:
+    return product_id in ["coins_100", "coins_500"]
 ```

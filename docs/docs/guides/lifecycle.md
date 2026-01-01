@@ -44,15 +44,13 @@ The connection can be in several states:
 ```gdscript
 extends Node
 
-var iap: GodotIap
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper
+
 var is_connected: bool = false
 
 func _ready():
-    if not Engine.has_singleton("GodotIap"):
-        print("GodotIap not available")
-        return
-
-    iap = Engine.get_singleton("GodotIap")
     _setup_signals()
     _initialize_connection()
 
@@ -60,21 +58,33 @@ func _setup_signals():
     iap.purchase_updated.connect(_on_purchase_updated)
     iap.purchase_error.connect(_on_purchase_error)
     iap.products_fetched.connect(_on_products_fetched)
+    iap.connected.connect(_on_connected)
 
 func _initialize_connection():
-    var result = JSON.parse_string(iap.init_connection())
+    # Returns bool - true if connection successful
+    is_connected = iap.init_connection()
 
-    if result.get("success", false):
-        is_connected = true
+    if is_connected:
         print("Connected to store")
         _load_products()
     else:
-        print("Failed to connect: ", result.get("error", ""))
+        print("Failed to connect")
+        _on_connection_failed()
 
 func _load_products():
     if is_connected:
-        var product_ids = ["coins_100", "premium"]
-        iap.fetch_products(JSON.stringify(product_ids), "inapp")
+        var request = Types.ProductRequest.new()
+        var skus: Array[String] = ["coins_100", "premium"]
+        request.skus = skus
+        request.type = Types.ProductQueryType.ALL
+
+        var products = iap.fetch_products(request)
+        for product in products:
+            print("Product: ", product.id, " - ", product.display_price)
+
+func _on_connected():
+    is_connected = true
+    print("Store connected")
 ```
 
 ### Handling Connection States
@@ -83,18 +93,17 @@ func _load_products():
 var connection_error: String = ""
 
 func _initialize_connection():
-    var result = JSON.parse_string(iap.init_connection())
+    is_connected = iap.init_connection()
 
-    if result.get("success", false):
-        is_connected = true
+    if is_connected:
         connection_error = ""
-        _on_connected()
+        _on_connected_successfully()
     else:
         is_connected = false
-        connection_error = result.get("error", "Unknown error")
+        connection_error = "Failed to connect to store"
         _on_connection_failed()
 
-func _on_connected():
+func _on_connected_successfully():
     print("Store connected, loading products...")
     _load_products()
 
@@ -115,14 +124,14 @@ func retry_connection():
 ```gdscript
 extends Node
 
-var iap: GodotIap
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper
 
 func _ready():
     # Initialize IAP when scene loads
-    if Engine.has_singleton("GodotIap"):
-        iap = Engine.get_singleton("GodotIap")
-        _setup_signals()
-        _initialize()
+    _setup_signals()
+    _initialize()
 
 func _exit_tree():
     # Clean up when scene is removed
@@ -140,11 +149,14 @@ func _setup_signals():
     iap.purchase_updated.connect(_on_purchase_updated)
     iap.purchase_error.connect(_on_purchase_error)
     iap.products_fetched.connect(_on_products_fetched)
+    iap.connected.connect(_on_connected)
 
 func _initialize():
-    var result = JSON.parse_string(iap.init_connection())
-    if result.get("success", false):
+    if iap.init_connection():
         _load_products()
+
+func _on_connected():
+    print("Store connected")
 
 func _on_purchase_updated(purchase: Dictionary):
     # Handle purchase updates
@@ -154,9 +166,16 @@ func _on_purchase_error(error: Dictionary):
     # Handle purchase errors
     pass
 
-func _on_products_fetched(products: Array):
+func _on_products_fetched(result: Dictionary):
     # Handle fetched products
     pass
+
+func _load_products():
+    var request = Types.ProductRequest.new()
+    var skus: Array[String] = ["coins_100", "premium"]
+    request.skus = skus
+    request.type = Types.ProductQueryType.ALL
+    iap.fetch_products(request)
 ```
 
 ### Autoload Pattern (Recommended)
@@ -167,7 +186,10 @@ For persistent IAP management, use an Autoload singleton:
 # iap_manager.gd - Add this as an Autoload
 extends Node
 
-var iap: GodotIap
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper
+
 var is_connected: bool = false
 var products: Array = []
 var subscriptions: Array = []
@@ -180,26 +202,38 @@ signal purchase_completed(purchase: Dictionary)
 signal purchase_failed(error: Dictionary)
 
 func _ready():
-    if Engine.has_singleton("GodotIap"):
-        iap = Engine.get_singleton("GodotIap")
-        _setup_signals()
-        _initialize()
-    else:
-        push_warning("GodotIap singleton not available")
+    # Note: In Autoload, $GodotIapWrapper must be added as a child node
+    # Alternatively, create the node dynamically:
+    _setup_iap_node()
+    _setup_signals()
+    _initialize()
+
+func _setup_iap_node():
+    # If using Autoload, you need to add GodotIapWrapper as a child
+    var wrapper = preload("res://addons/godot-iap/godot_iap.gd").new()
+    wrapper.name = "GodotIapWrapper"
+    add_child(wrapper)
+    iap = wrapper
 
 func _setup_signals():
     iap.purchase_updated.connect(_on_purchase_updated)
     iap.purchase_error.connect(_on_purchase_error)
     iap.products_fetched.connect(_on_products_fetched)
-    iap.subscriptions_fetched.connect(_on_subscriptions_fetched)
+    iap.connected.connect(_on_connected)
+    iap.disconnected.connect(_on_disconnected)
 
 func _initialize():
-    var result = JSON.parse_string(iap.init_connection())
-    if result.get("success", false):
-        is_connected = true
+    is_connected = iap.init_connection()
+    if is_connected:
         iap_connected.emit()
-    else:
-        iap_error.emit({"message": result.get("error", "")})
+
+func _on_connected():
+    is_connected = true
+    iap_connected.emit()
+
+func _on_disconnected():
+    is_connected = false
+    iap_disconnected.emit()
 
 func _on_purchase_updated(purchase: Dictionary):
     purchase_completed.emit(purchase)
@@ -207,30 +241,47 @@ func _on_purchase_updated(purchase: Dictionary):
 func _on_purchase_error(error: Dictionary):
     purchase_failed.emit(error)
 
-func _on_products_fetched(fetched_products: Array):
-    products = fetched_products
-    products_loaded.emit(products)
-
-func _on_subscriptions_fetched(fetched_subs: Array):
-    subscriptions = fetched_subs
+func _on_products_fetched(result: Dictionary):
+    if result.has("products"):
+        products = result["products"]
+        products_loaded.emit(products)
 
 # Public API
-func load_products(product_ids: Array):
+func load_products(product_ids: Array[String]):
     if is_connected:
-        iap.fetch_products(JSON.stringify(product_ids), "inapp")
+        var request = Types.ProductRequest.new()
+        request.skus = product_ids
+        request.type = Types.ProductQueryType.ALL
+        products = iap.fetch_products(request)
+        products_loaded.emit(products)
 
-func load_subscriptions(sub_ids: Array):
+func load_subscriptions(sub_ids: Array[String]):
     if is_connected:
-        iap.fetch_subscriptions(JSON.stringify(sub_ids))
+        var request = Types.ProductRequest.new()
+        request.skus = sub_ids
+        request.type = Types.ProductQueryType.SUBS
+        subscriptions = iap.fetch_products(request)
 
-func buy(product_id: String, type: String = "inapp"):
-    if is_connected:
-        var params = {"sku": product_id, "type": type}
-        iap.request_purchase(JSON.stringify(params))
+func buy(product_id: String, type: Types.ProductQueryType = Types.ProductQueryType.IN_APP):
+    if not is_connected:
+        return
 
-func restore():
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.type = type
+
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
+
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = product_id
+
+    iap.request_purchase(props)
+
+func restore() -> Array:
     if is_connected:
-        return JSON.parse_string(iap.get_available_purchases())
+        return iap.get_available_purchases()
     return []
 ```
 
@@ -255,13 +306,25 @@ func _on_iap_connected():
     _load_store()
 
 func _load_store():
-    IapManager.load_products(["coins_100", "premium"])
+    var skus: Array[String] = ["coins_100", "premium"]
+    IapManager.load_products(skus)
 
 func _on_products_loaded(products: Array):
     update_store_ui(products)
 
 func _on_purchase_completed(purchase: Dictionary):
     handle_purchase(purchase)
+
+func update_store_ui(products: Array):
+    for product in products:
+        var id = product.id if product is Object else product.get("id", "")
+        var price = product.display_price if product is Object else product.get("displayPrice", "")
+        print("Product: ", id, " - ", price)
+
+func handle_purchase(purchase: Dictionary):
+    var product_id = purchase.get("productId", "")
+    # Grant purchase to user
+    pass
 ```
 
 ## Best Practices
@@ -290,13 +353,13 @@ func _ready():
 # Bad: Initializing for every operation
 func bad_purchase_flow(product_id: String):
     iap.init_connection()  # Don't do this
-    iap.request_purchase(JSON.stringify({"sku": product_id}))
+    buy_product(product_id)
     iap.end_connection()   # Don't do this
 
 # Good: Use existing connection
 func good_purchase_flow(product_id: String):
     if is_connected:
-        iap.request_purchase(JSON.stringify({"sku": product_id}))
+        buy_product(product_id)
 ```
 
 ## Purchase Flow Best Practices
@@ -305,7 +368,7 @@ func good_purchase_flow(product_id: String):
 
 1. **Server-side verification recommended**: For production apps, verify purchases on your secure server before granting content.
 
-2. **Finish transactions after verification**: Always call `finish_transaction` after successfully verifying a purchase.
+2. **Finish transactions after verification**: Always call `finish_transaction` or `finish_transaction_dict` after successfully verifying a purchase.
 
 3. **Never trust client-side data**: Always verify purchases server-side before granting premium content.
 
@@ -351,12 +414,11 @@ func handle_purchase(purchase: Dictionary):
 func handle_purchase(purchase: Dictionary):
     var verified = await validate_receipt(purchase)
     if verified:
-        grant_content(purchase.productId)
-        var params = {
-            "purchase": purchase,
-            "isConsumable": is_consumable(purchase.productId)
-        }
-        iap.finish_transaction(JSON.stringify(params))
+        grant_content(purchase.get("productId", ""))
+        var is_consumable = is_consumable_product(purchase.get("productId", ""))
+        var result = iap.finish_transaction_dict(purchase, is_consumable)
+        if result.success:
+            print("Transaction finished")
 ```
 
 ### Security Issues
@@ -374,7 +436,7 @@ func handle_purchase(purchase: Dictionary):
 ```gdscript
 # Correct - validate on secure server
 func handle_purchase(purchase: Dictionary):
-    var is_valid = await your_api.validate_receipt(purchase.purchaseToken)
+    var is_valid = await your_api.validate_receipt(purchase)
     if is_valid:
         grant_premium_feature()
         finish_transaction(purchase)
@@ -389,12 +451,13 @@ Purchases can complete after app restart, so always check for pending purchases 
 ```gdscript
 # Correct - check for purchases on app launch
 func _ready():
+    _setup_signals()
     # After connection established
-    if is_connected:
+    if iap.init_connection():
         check_pending_purchases()
 
 func check_pending_purchases():
-    var purchases = JSON.parse_string(iap.get_available_purchases())
+    var purchases = iap.get_available_purchases()
     for purchase in purchases:
         await process_purchase(purchase)
 ```
@@ -407,7 +470,7 @@ func check_pending_purchases():
 # Wrong - don't initialize for every operation
 func purchase_product(sku: String):
     iap.init_connection()  # Don't do this
-    iap.request_purchase(...)
+    buy_product(sku)
     iap.end_connection()   # Don't do this
 ```
 
@@ -417,7 +480,7 @@ func purchase_product(sku: String):
 # Correct - use existing connection
 func purchase_product(sku: String):
     if is_connected:
-        iap.request_purchase(...)
+        buy_product(sku)
     else:
         print("Store not connected")
 ```

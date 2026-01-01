@@ -11,7 +11,7 @@ import IapKitLink from '@site/src/uis/IapKitLink';
 
 <IapKitBanner />
 
-This example demonstrates how to implement subscription purchases with proper offer handling for both iOS and Android.
+This example demonstrates how to implement subscription purchases with proper offer handling for both iOS and Android using the **type-safe API**.
 
 ## Overview
 
@@ -29,7 +29,10 @@ This example covers:
 # subscription_manager.gd
 extends Node
 
-var iap: GodotIap = null
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper
+
 var subscriptions: Array = []
 var is_connected: bool = false
 
@@ -48,39 +51,48 @@ func _ready():
     _initialize()
 
 func _initialize():
-    if not Engine.has_singleton("GodotIap"):
-        push_warning("GodotIap not available")
-        return
-
-    iap = Engine.get_singleton("GodotIap")
-
     # Connect signals
     iap.purchase_updated.connect(_on_purchase_updated)
     iap.purchase_error.connect(_on_purchase_error)
-    iap.subscriptions_fetched.connect(_on_subscriptions_fetched)
-
-    # iOS-specific
-    if OS.get_name() == "iOS":
-        iap.subscription_status_changed_ios.connect(_on_subscription_status_changed_ios)
+    iap.products_fetched.connect(_on_products_fetched)
+    iap.connected.connect(_on_connected)
 
     # Initialize connection
-    var result = JSON.parse_string(iap.init_connection())
-    is_connected = result.get("success", false)
+    is_connected = iap.init_connection()
 
     if is_connected:
         _check_subscription_status()
         _load_subscriptions()
 
+func _on_connected():
+    is_connected = true
+    _check_subscription_status()
+    _load_subscriptions()
+
 func _load_subscriptions():
-    var sub_ids = SUBSCRIPTION_IDS.values()
-    iap.fetch_subscriptions(JSON.stringify(sub_ids))
+    var request = Types.ProductRequest.new()
+    var skus: Array[String] = []
+    for sku in SUBSCRIPTION_IDS.values():
+        skus.append(sku)
+    request.skus = skus
+    request.type = Types.ProductQueryType.SUBS
+
+    # Returns Array of Types.ProductAndroid or Types.ProductIOS
+    subscriptions = iap.fetch_products(request)
+
+    for sub in subscriptions:
+        print("Subscription: ", sub.id)
+        _print_subscription_details(sub)
+
+    subscriptions_loaded.emit(subscriptions)
 
 func _check_subscription_status():
-    var purchases = JSON.parse_string(iap.get_available_purchases())
+    # Returns Array of typed purchase objects
+    var purchases = iap.get_available_purchases()
 
     for purchase in purchases:
-        if _is_subscription(purchase.productId):
-            if _is_subscription_active(purchase):
+        if _is_subscription(purchase.product_id):
+            if _is_subscription_active_typed(purchase):
                 GameState.set_premium(true)
                 subscription_status_changed.emit(true)
                 return
@@ -89,46 +101,29 @@ func _check_subscription_status():
     subscription_status_changed.emit(false)
 
 # Signal handlers
-func _on_subscriptions_fetched(fetched_subs: Array):
-    subscriptions = fetched_subs
-
-    for sub in subscriptions:
-        print("Subscription: ", sub.productId)
-        _print_subscription_details(sub)
-
-    subscriptions_loaded.emit(subscriptions)
+func _on_products_fetched(result: Dictionary):
+    # iOS async callback
+    if result.has("products"):
+        subscriptions.clear()
+        for product_dict in result["products"]:
+            subscriptions.append(product_dict)
+        subscriptions_loaded.emit(subscriptions)
 
 func _on_purchase_updated(purchase: Dictionary):
-    var product_id = purchase.productId
+    var product_id = purchase.get("productId", "")
 
     if not _is_subscription(product_id):
         return
 
     var state = purchase.get("purchaseState", "")
 
-    if state == "purchased":
+    if state == "purchased" or state == "Purchased":
         await _process_subscription_purchase(purchase)
 
 func _on_purchase_error(error: Dictionary):
     var code = error.get("code", "")
     if code != "USER_CANCELED":
         subscription_error.emit(error)
-
-func _on_subscription_status_changed_ios(status: Dictionary):
-    var state = status.get("state", "")
-
-    match state:
-        "subscribed":
-            GameState.set_premium(true)
-            subscription_status_changed.emit(true)
-        "expired", "revoked":
-            GameState.set_premium(false)
-            subscription_status_changed.emit(false)
-        "inGracePeriod", "inBillingRetryPeriod":
-            # Still has access but there's a billing issue
-            GameState.set_premium(true)
-            # Show warning to user
-            print("Subscription billing issue - grace period active")
 
 func _process_subscription_purchase(purchase: Dictionary):
     # Verify on server
@@ -142,13 +137,11 @@ func _process_subscription_purchase(purchase: Dictionary):
     GameState.set_premium(true)
 
     # Finish transaction
-    var params = {
-        "purchase": purchase,
-        "isConsumable": false
-    }
-    iap.finish_transaction(JSON.stringify(params))
+    var result = iap.finish_transaction_dict(purchase, false)
+    if result.success:
+        print("Subscription transaction finished")
 
-    subscription_purchased.emit(purchase.productId)
+    subscription_purchased.emit(purchase.get("productId", ""))
     subscription_status_changed.emit(true)
 
 # Public API
@@ -162,22 +155,35 @@ func purchase_subscription(subscription_id: String):
         push_error("Subscription not found: ", subscription_id)
         return
 
-    var params = {
-        "sku": subscription_id,
-        "type": "subs"
-    }
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.type = Types.ProductQueryType.SUBS
 
-    # Android: Must include offer token
+    # Android configuration
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [subscription_id]
+    props.request.google.skus = skus
+
+    # Android: Must include offer token for subscriptions
     if OS.get_name() == "Android":
-        var offers = subscription.get("subscriptionOfferDetailsAndroid", [])
+        var offers = _get_subscription_offers(subscription)
         if offers.size() == 0:
             push_error("No subscription offers available")
             return
 
         # Use first offer (or let user choose)
-        params["offerToken"] = offers[0].offerToken
+        var sub_offers: Array[Types.SubscriptionOfferAndroid] = []
+        var offer = Types.SubscriptionOfferAndroid.new()
+        offer.sku = subscription_id
+        offer.offer_token = offers[0].get("offerToken", "")
+        sub_offers.append(offer)
+        props.request.google.subscription_offers = sub_offers
 
-    iap.request_purchase(JSON.stringify(params))
+    # iOS configuration
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = subscription_id
+
+    iap.request_purchase(props)
 
 func purchase_subscription_with_offer(subscription_id: String, offer_index: int):
     """Purchase with a specific offer (Android only)"""
@@ -189,29 +195,41 @@ func purchase_subscription_with_offer(subscription_id: String, offer_index: int)
     if not subscription:
         return
 
-    var offers = subscription.get("subscriptionOfferDetailsAndroid", [])
+    var offers = _get_subscription_offers(subscription)
     if offer_index >= offers.size():
         push_error("Invalid offer index")
         return
 
-    var params = {
-        "sku": subscription_id,
-        "type": "subs",
-        "offerToken": offers[offer_index].offerToken
-    }
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.type = Types.ProductQueryType.SUBS
 
-    iap.request_purchase(JSON.stringify(params))
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [subscription_id]
+    props.request.google.skus = skus
+
+    var sub_offers: Array[Types.SubscriptionOfferAndroid] = []
+    var offer = Types.SubscriptionOfferAndroid.new()
+    offer.sku = subscription_id
+    offer.offer_token = offers[offer_index].get("offerToken", "")
+    sub_offers.append(offer)
+    props.request.google.subscription_offers = sub_offers
+
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = subscription_id
+
+    iap.request_purchase(props)
 
 func restore_subscriptions() -> bool:
     if not is_connected:
         return false
 
-    var purchases = JSON.parse_string(iap.get_available_purchases())
+    var purchases = iap.get_available_purchases()
     var found_active = false
 
     for purchase in purchases:
-        if _is_subscription(purchase.productId):
-            if _is_subscription_active(purchase):
+        if _is_subscription(purchase.product_id):
+            if _is_subscription_active_typed(purchase):
                 GameState.set_premium(true)
                 found_active = true
 
@@ -220,20 +238,25 @@ func restore_subscriptions() -> bool:
 
 func manage_subscriptions():
     """Open subscription management in platform settings"""
-    var options = {}
+    var options = Types.DeepLinkOptions.new()
 
     if OS.get_name() == "Android":
-        options["packageNameAndroid"] = ProjectSettings.get_setting(
+        options.package_name_android = ProjectSettings.get_setting(
             "application/config/package_name"
         )
 
-    iap.deep_link_to_subscriptions(JSON.stringify(options))
+    iap.deep_link_to_subscriptions(options)
 
 func get_subscription_price(subscription_id: String) -> String:
     var subscription = _find_subscription(subscription_id)
     if not subscription:
         return "$9.99"
 
+    # Access typed property
+    if subscription is Object:
+        return subscription.display_price if subscription.display_price else "$9.99"
+
+    # Dictionary fallback
     if OS.get_name() == "iOS":
         return subscription.get("displayPrice", "$9.99")
 
@@ -253,7 +276,7 @@ func get_subscription_offers(subscription_id: String) -> Array:
     if not subscription:
         return []
 
-    return subscription.get("subscriptionOfferDetailsAndroid", [])
+    return _get_subscription_offers(subscription)
 
 func has_free_trial(subscription_id: String) -> bool:
     var subscription = _find_subscription(subscription_id)
@@ -261,13 +284,19 @@ func has_free_trial(subscription_id: String) -> bool:
         return false
 
     if OS.get_name() == "iOS":
+        # Check typed property for iOS
+        if subscription is Object and "subscription_info" in subscription:
+            var sub_info = subscription.subscription_info
+            if sub_info and sub_info.introductory_offer:
+                return sub_info.introductory_offer.payment_mode == "free-trial"
+        # Dictionary fallback
         var sub_info = subscription.get("subscriptionInfoIOS", {})
         var intro = sub_info.get("introductoryOffer", null)
         if intro:
             return intro.get("paymentMode", "") == "free-trial"
 
     elif OS.get_name() == "Android":
-        var offers = subscription.get("subscriptionOfferDetailsAndroid", [])
+        var offers = _get_subscription_offers(subscription)
         for offer in offers:
             var phases = offer.get("pricingPhases", {}).get("pricingPhaseList", [])
             for phase in phases:
@@ -277,35 +306,65 @@ func has_free_trial(subscription_id: String) -> bool:
     return false
 
 # Helper functions
-func _find_subscription(subscription_id: String) -> Dictionary:
+func _find_subscription(subscription_id: String):
     for sub in subscriptions:
-        if sub.productId == subscription_id:
+        var sub_id = sub.id if sub is Object else sub.get("id", sub.get("productId", ""))
+        if sub_id == subscription_id:
             return sub
-    return {}
+    return null
+
+func _get_subscription_offers(subscription) -> Array:
+    if subscription is Object:
+        # Typed object
+        if "subscription_offer_details" in subscription:
+            return subscription.subscription_offer_details
+    # Dictionary
+    return subscription.get("subscriptionOfferDetailsAndroid", [])
 
 func _is_subscription(product_id: String) -> bool:
     return product_id in SUBSCRIPTION_IDS.values()
 
-func _is_subscription_active(purchase: Dictionary) -> bool:
+func _is_subscription_active_typed(purchase) -> bool:
     var current_time = Time.get_unix_time_from_system() * 1000
 
     if OS.get_name() == "iOS":
-        var expiration = purchase.get("expirationDateIOS", 0)
+        var expiration = 0
+        if purchase is Object:
+            expiration = purchase.expiration_date if "expiration_date" in purchase else 0
+        else:
+            expiration = purchase.get("expirationDateIOS", 0)
+
         if expiration > 0:
             return expiration > current_time
 
         # Sandbox: Consider recent purchases as active
-        if purchase.get("environmentIOS") == "Sandbox":
+        var environment = ""
+        var tx_date = 0
+        if purchase is Object:
+            environment = purchase.environment if "environment" in purchase else ""
+            tx_date = purchase.transaction_date if "transaction_date" in purchase else 0
+        else:
+            environment = purchase.get("environmentIOS", "")
+            tx_date = purchase.get("transactionDate", 0)
+
+        if environment == "Sandbox":
             var day_ms = 24 * 60 * 60 * 1000
-            var tx_date = purchase.get("transactionDate", 0)
             return (current_time - tx_date) < day_ms
 
     elif OS.get_name() == "Android":
-        var auto_renewing = purchase.get("autoRenewingAndroid", null)
+        var auto_renewing = null
+        var purchase_state = ""
+        if purchase is Object:
+            auto_renewing = purchase.auto_renewing if "auto_renewing" in purchase else null
+            purchase_state = purchase.purchase_state if "purchase_state" in purchase else ""
+        else:
+            auto_renewing = purchase.get("autoRenewingAndroid", null)
+            purchase_state = purchase.get("purchaseState", "")
+
         if auto_renewing != null:
             return auto_renewing
 
-        if purchase.get("purchaseState") == "purchased":
+        if purchase_state == "purchased" or purchase_state == "Purchased":
             return true
 
     return false
@@ -355,18 +414,20 @@ func _verify_with_iapkit(purchase: Dictionary) -> bool:
 
     return false
 
-func _print_subscription_details(subscription: Dictionary):
-    print("  Title: ", subscription.get("title", ""))
-    print("  Price: ", get_subscription_price(subscription.productId))
+func _print_subscription_details(subscription):
+    var title = subscription.title if subscription is Object else subscription.get("title", "")
+    var sub_id = subscription.id if subscription is Object else subscription.get("id", "")
+
+    print("  Title: ", title)
+    print("  Price: ", get_subscription_price(sub_id))
 
     if OS.get_name() == "iOS":
-        var sub_info = subscription.get("subscriptionInfoIOS", {})
-        var intro = sub_info.get("introductoryOffer", null)
-        if intro:
-            print("  Intro Offer: ", intro.get("paymentMode", ""), " - ", intro.get("displayPrice", ""))
+        # Check for intro offer
+        if has_free_trial(sub_id):
+            print("  Free trial available!")
 
     elif OS.get_name() == "Android":
-        var offers = subscription.get("subscriptionOfferDetailsAndroid", [])
+        var offers = _get_subscription_offers(subscription)
         print("  Offers: ", offers.size())
         for i in range(offers.size()):
             var offer = offers[i]

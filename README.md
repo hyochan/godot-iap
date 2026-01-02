@@ -35,6 +35,16 @@ Visit the [documentation site](https://hyochan.github.io/godot-iap) for [install
 
 See the [Installation Guide](https://hyochan.github.io/godot-iap/getting-started/installation) for more details.
 
+## Using with AI Assistants
+
+godot-iap provides AI-friendly documentation for Cursor, GitHub Copilot, Claude, and ChatGPT.
+
+**[AI Assistants Guide](https://hyochan.github.io/godot-iap/guides/ai-assistants)**
+
+Quick links:
+- [llms.txt](https://hyochan.github.io/godot-iap/llms.txt) - Quick reference
+- [llms-full.txt](https://hyochan.github.io/godot-iap/llms-full.txt) - Full API reference
+
 ## Quick Start
 
 See the [Quick Start Guide](https://hyochan.github.io/godot-iap/#quick-start) for complete code examples and setup instructions.

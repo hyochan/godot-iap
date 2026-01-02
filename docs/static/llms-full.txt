@@ -1,0 +1,1376 @@
+# godot-iap: Complete API Reference
+
+> A comprehensive, cross-platform in-app purchase (IAP) solution for Godot Engine 4.x following the OpenIAP specification.
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Installation](#installation)
+3. [Setup Guide](#setup-guide)
+4. [Core API](#core-api)
+5. [Types Reference](#types-reference)
+6. [iOS-Specific API](#ios-specific-api)
+7. [Android-Specific API](#android-specific-api)
+8. [Signals](#signals)
+9. [Error Handling](#error-handling)
+10. [Common Patterns](#common-patterns)
+11. [Troubleshooting](#troubleshooting)
+
+---
+
+## Overview
+
+godot-iap is an In-App Purchase plugin for Godot Engine that follows the [OpenIAP specification](https://openiap.dev). It provides a unified GDScript API for iOS (StoreKit 2) and Android (Google Play Billing v8+).
+
+### Version Information
+
+- **Current Version**: 1.0
+- **Godot Compatibility**: 4.3+
+- **iOS Requirements**: iOS 15.0+, Xcode 16+ (Swift 6.0+)
+- **Android Requirements**: API level 24+, Google Play Billing Library v8+
+
+### Key Features
+
+- Cross-platform unified API
+- Full StoreKit 2 support for iOS
+- Google Play Billing v8+ for Android
+- Type-safe GDScript with static typing
+- Signal-based event architecture
+- OpenIAP specification compliant
+
+---
+
+## Installation
+
+### Step 1: Download
+
+Download `godot-iap-{version}.zip` from [GitHub Releases](https://github.com/hyochan/godot-iap/releases).
+
+### Step 2: Copy Files
+
+Extract and copy the `addons/godot-iap/` folder to your project's `addons/` directory:
+
+```
+your-project/
+├── addons/
+│   └── godot-iap/
+│       ├── android/
+│       ├── bin/
+│       ├── godot_iap.gd
+│       ├── godot_iap_plugin.gd
+│       ├── plugin.cfg
+│       └── types.gd
+├── project.godot
+└── ...
+```
+
+### Step 3: Enable Plugin
+
+1. Open your project in Godot Editor
+2. Go to **Project > Project Settings > Plugins**
+3. Find "GodotIap" and enable it
+4. The `GodotIapPlugin` autoload singleton will be available
+
+### Step 4: Platform Setup
+
+#### iOS Setup
+
+1. In Xcode, enable "In-App Purchase" capability
+2. Configure products in App Store Connect
+3. Export with valid provisioning profile
+
+#### Android Setup
+
+1. Products must be configured in Google Play Console
+2. App must be signed and uploaded to Google Play (internal/closed testing)
+3. License testing accounts must be configured
+
+---
+
+## Setup Guide
+
+### Basic Setup
+
+Add `GodotIapWrapper` as a child node to your scene, then reference it:
+
+```gdscript
+extends Node
+
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper
+
+func _ready():
+    _setup_signals()
+    _initialize_iap()
+
+func _setup_signals():
+    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_error.connect(_on_purchase_error)
+    iap.connected.connect(_on_connected)
+    iap.disconnected.connect(_on_disconnected)
+
+func _initialize_iap():
+    if iap.init_connection():
+        print("IAP initialized successfully")
+    else:
+        print("Failed to initialize IAP")
+```
+
+### Alternative: Using Autoload
+
+The plugin automatically registers `GodotIapPlugin` as an autoload singleton:
+
+```gdscript
+extends Node
+
+const Types = preload("res://addons/godot-iap/types.gd")
+
+func _ready():
+    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
+    GodotIapPlugin.init_connection()
+```
+
+---
+
+## Core API
+
+### Connection Methods
+
+#### init_connection
+
+Initialize the billing connection. Must be called before any other IAP operations.
+
+```gdscript
+func init_connection() -> bool
+```
+
+**Returns**: `true` if connection successful
+
+**Example**:
+```gdscript
+func _ready():
+    if iap.init_connection():
+        _fetch_products()
+    else:
+        print("IAP not available")
+```
+
+#### end_connection
+
+End the billing connection.
+
+```gdscript
+func end_connection() -> bool
+```
+
+**Returns**: `true` if disconnection successful
+
+**Example**:
+```gdscript
+func _exit_tree():
+    iap.end_connection()
+```
+
+#### is_store_connected
+
+Check if connected to the store.
+
+```gdscript
+func is_store_connected() -> bool
+```
+
+---
+
+### Product Methods
+
+#### fetch_products
+
+Fetch product details from the store.
+
+```gdscript
+func fetch_products(request: Types.ProductRequest) -> Array
+```
+
+**Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `request` | `Types.ProductRequest` | Product request with SKUs and type |
+
+**Returns**: `Array` of `Types.ProductAndroid` (Android) or `Types.ProductIOS` (iOS)
+
+**Example**:
+```gdscript
+func fetch_all_products():
+    var request = Types.ProductRequest.new()
+    var skus: Array[String] = ["coins_100", "coins_500", "premium_monthly"]
+    request.skus = skus
+    request.type = Types.ProductQueryType.ALL
+
+    var products = iap.fetch_products(request)
+    for product in products:
+        print("ID: %s" % product.id)
+        print("Title: %s" % product.title)
+        print("Price: %s" % product.display_price)
+        print("Type: %s" % product.type)
+```
+
+---
+
+### Purchase Methods
+
+#### request_purchase
+
+Request a purchase for a product.
+
+```gdscript
+func request_purchase(props: Types.RequestPurchaseProps) -> Variant
+```
+
+**Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `props` | `Types.RequestPurchaseProps` | Purchase request configuration |
+
+**Returns**: `Types.PurchaseAndroid`, `Types.PurchaseIOS`, or `null`
+
+**Example**:
+```gdscript
+func purchase_product(product_id: String):
+    var props = Types.RequestPurchaseProps.new()
+    props.type = Types.ProductQueryType.IN_APP
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+
+    # Android configuration
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
+
+    # iOS configuration
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = product_id
+
+    var purchase = iap.request_purchase(props)
+    if purchase:
+        print("Purchase initiated: ", purchase.product_id)
+```
+
+#### finish_transaction
+
+Finish a transaction after processing. **Must be called for every successful purchase.**
+
+```gdscript
+func finish_transaction(purchase: Types.PurchaseInput, is_consumable: bool) -> Types.VoidResult
+```
+
+**Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `purchase` | `Types.PurchaseInput` | Purchase to finish |
+| `is_consumable` | `bool` | Whether the product is consumable |
+
+**Returns**: `Types.VoidResult`
+
+**Example**:
+```gdscript
+func _on_purchase_updated(purchase_dict: Dictionary):
+    if purchase_dict.get("purchaseState") == "Purchased":
+        var purchase_input = Types.PurchaseInput.from_dict(purchase_dict)
+        var is_consumable = _is_consumable_product(purchase_dict.get("productId", ""))
+        var result = iap.finish_transaction(purchase_input, is_consumable)
+        if result.success:
+            _grant_content(purchase_dict.get("productId", ""))
+```
+
+#### finish_transaction_dict
+
+Convenience method to finish transaction with raw Dictionary.
+
+```gdscript
+func finish_transaction_dict(purchase: Dictionary, is_consumable: bool) -> Types.VoidResult
+```
+
+**Example**:
+```gdscript
+func _on_purchase_updated(purchase: Dictionary):
+    var result = iap.finish_transaction_dict(purchase, true)  # true = consumable
+```
+
+#### get_available_purchases
+
+Get all available (unfinished) purchases.
+
+```gdscript
+func get_available_purchases(options: Types.PurchaseOptions = null) -> Array
+```
+
+**Returns**: `Array` of `Types.PurchaseAndroid` (Android) or `Types.PurchaseIOS` (iOS)
+
+**Example**:
+```gdscript
+func check_pending_purchases():
+    var purchases = iap.get_available_purchases()
+    for purchase in purchases:
+        print("Pending: %s" % purchase.product_id)
+        await _process_purchase(purchase)
+```
+
+#### restore_purchases
+
+Restore previous purchases.
+
+```gdscript
+func restore_purchases() -> Types.VoidResult
+```
+
+**Example**:
+```gdscript
+func _on_restore_button_pressed():
+    var result = iap.restore_purchases()
+    if result.success:
+        var purchases = iap.get_available_purchases()
+        for purchase in purchases:
+            _restore_content(purchase.product_id)
+```
+
+---
+
+### Subscription Methods
+
+#### get_active_subscriptions
+
+Get active subscriptions for given IDs.
+
+```gdscript
+func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array[Types.ActiveSubscription]
+```
+
+**Parameters**:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `subscription_ids` | `Array[String]` | Subscription IDs to check (empty for all) |
+
+**Returns**: `Array[Types.ActiveSubscription]`
+
+**Example**:
+```gdscript
+func check_subscription_status():
+    var ids: Array[String] = ["premium_monthly", "premium_yearly"]
+    var active = iap.get_active_subscriptions(ids)
+
+    for sub in active:
+        print("Active: %s" % sub.product_id)
+        print("Expires: %s" % sub.expiration_date_ios)  # iOS
+        print("Auto-renewing: %s" % sub.auto_renewing_android)  # Android
+```
+
+#### has_active_subscriptions
+
+Check if user has any active subscriptions.
+
+```gdscript
+func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool
+```
+
+**Example**:
+```gdscript
+func is_premium_user() -> bool:
+    var ids: Array[String] = ["premium_monthly", "premium_yearly"]
+    return iap.has_active_subscriptions(ids)
+```
+
+---
+
+### Storefront Methods
+
+#### get_storefront
+
+Get the current storefront country code.
+
+```gdscript
+func get_storefront() -> String
+```
+
+**Returns**: Country code string (e.g., "US", "JP", "KR")
+
+---
+
+### Verification Methods
+
+#### verify_purchase
+
+Verify a purchase locally.
+
+```gdscript
+func verify_purchase(props: Types.VerifyPurchaseProps) -> Variant
+```
+
+**Returns**: `Types.VerifyPurchaseResultIOS` or `Types.VerifyPurchaseResultAndroid`
+
+#### verify_purchase_with_provider
+
+Verify a purchase using external provider (IAPKit).
+
+```gdscript
+func verify_purchase_with_provider(props: Types.VerifyPurchaseWithProviderProps) -> Types.VerifyPurchaseWithProviderResult
+```
+
+---
+
+### Utility Methods
+
+#### get_platform
+
+Get current platform name.
+
+```gdscript
+func get_platform() -> String
+```
+
+**Returns**: "Android", "iOS", "macOS", etc.
+
+#### is_mock_mode
+
+Check if running in mock mode (no native plugin).
+
+```gdscript
+func is_mock_mode() -> bool
+```
+
+#### get_store
+
+Get the current store type.
+
+```gdscript
+func get_store() -> Types.IapStore
+```
+
+**Returns**: `Types.IapStore.GOOGLE`, `Types.IapStore.APPLE`, or `Types.IapStore.UNKNOWN`
+
+---
+
+## Types Reference
+
+### Enums
+
+#### ProductQueryType
+
+```gdscript
+enum ProductQueryType {
+    IN_APP = 0,   # In-app products only
+    SUBS = 1,     # Subscriptions only
+    ALL = 2       # All product types
+}
+```
+
+#### ProductType
+
+```gdscript
+enum ProductType {
+    IN_APP = 0,   # In-app product
+    SUBS = 1      # Subscription
+}
+```
+
+#### PurchaseState
+
+```gdscript
+enum PurchaseState {
+    PENDING = 0,    # Purchase pending
+    PURCHASED = 1,  # Purchase complete
+    UNKNOWN = 2     # Unknown state
+}
+```
+
+#### ErrorCode
+
+```gdscript
+enum ErrorCode {
+    UNKNOWN = 0,
+    USER_CANCELLED = 1,
+    USER_ERROR = 2,
+    ITEM_UNAVAILABLE = 3,
+    REMOTE_ERROR = 4,
+    NETWORK_ERROR = 5,
+    SERVICE_ERROR = 6,
+    RECEIPT_FAILED = 7,
+    RECEIPT_FINISHED = 8,
+    RECEIPT_FINISHED_FAILED = 9,
+    PURCHASE_VERIFICATION_FAILED = 10,
+    PURCHASE_VERIFICATION_FINISHED = 11,
+    PURCHASE_VERIFICATION_FINISH_FAILED = 12,
+    NOT_PREPARED = 13,
+    NOT_ENDED = 14,
+    ALREADY_OWNED = 15,
+    DEVELOPER_ERROR = 16,
+    BILLING_RESPONSE_JSON_PARSE_ERROR = 17,
+    DEFERRED_PAYMENT = 18,
+    INTERRUPTED = 19,
+    IAP_NOT_AVAILABLE = 20,
+    PURCHASE_ERROR = 21,
+    SYNC_ERROR = 22,
+    TRANSACTION_VALIDATION_FAILED = 23,
+    ACTIVITY_UNAVAILABLE = 24,
+    ALREADY_PREPARED = 25,
+    PENDING = 26,
+    CONNECTION_CLOSED = 27,
+    INIT_CONNECTION = 28,
+    SERVICE_DISCONNECTED = 29,
+    QUERY_PRODUCT = 30,
+    SKU_NOT_FOUND = 31,
+    SKU_OFFER_MISMATCH = 32,
+    ITEM_NOT_OWNED = 33,
+    BILLING_UNAVAILABLE = 34,
+    FEATURE_NOT_SUPPORTED = 35,
+    EMPTY_SKU_LIST = 36
+}
+```
+
+#### IapStore
+
+```gdscript
+enum IapStore {
+    UNKNOWN = 0,
+    APPLE = 1,
+    GOOGLE = 2,
+    HORIZON = 3
+}
+```
+
+#### ProductTypeIOS
+
+```gdscript
+enum ProductTypeIOS {
+    CONSUMABLE = 0,
+    NON_CONSUMABLE = 1,
+    AUTO_RENEWABLE_SUBSCRIPTION = 2,
+    NON_RENEWING_SUBSCRIPTION = 3
+}
+```
+
+#### SubscriptionReplacementModeAndroid
+
+```gdscript
+enum SubscriptionReplacementModeAndroid {
+    UNKNOWN_REPLACEMENT_MODE = 0,
+    WITH_TIME_PRORATION = 1,
+    CHARGE_PRORATED_PRICE = 2,
+    CHARGE_FULL_PRICE = 3,
+    WITHOUT_PRORATION = 4,
+    DEFERRED = 5,
+    KEEP_EXISTING = 6
+}
+```
+
+---
+
+### Input Types
+
+#### ProductRequest
+
+```gdscript
+class ProductRequest:
+    var skus: Array[String]          # Product identifiers to fetch
+    var type: ProductQueryType       # IN_APP, SUBS, or ALL
+
+    static func from_dict(data: Dictionary) -> ProductRequest
+    func to_dict() -> Dictionary
+```
+
+#### RequestPurchaseProps
+
+```gdscript
+class RequestPurchaseProps:
+    var request: RequestPurchasePropsByPlatforms
+    var type: ProductQueryType
+
+class RequestPurchasePropsByPlatforms:
+    var google: RequestPurchaseAndroidProps
+    var apple: RequestPurchaseIOSProps
+
+class RequestPurchaseAndroidProps:
+    var skus: Array[String]
+    var offer_token: String
+    var obfuscated_account_id_android: String
+    var obfuscated_profile_id_android: String
+    var is_offer_personalized: bool
+    var subscription_offers: Array[SubscriptionOfferAndroid]
+    var purchase_token_android: String  # For upgrades/downgrades
+    var replacement_mode_android: SubscriptionReplacementModeAndroid
+
+class RequestPurchaseIOSProps:
+    var sku: String
+    var quantity: int
+    var discount_offer: DiscountOfferIOS
+    var app_account_token: String
+```
+
+#### PurchaseInput
+
+```gdscript
+class PurchaseInput:
+    var product_id: String
+    var transaction_id: String
+    var purchase_token: String  # Android only
+
+    static func from_dict(data: Dictionary) -> PurchaseInput
+    func to_dict() -> Dictionary
+```
+
+---
+
+### Product Types
+
+#### ProductAndroid
+
+```gdscript
+class ProductAndroid:
+    var id: String
+    var title: String
+    var description: String
+    var type: ProductType
+    var display_name: String
+    var display_price: String
+    var currency: String
+    var price: float
+    var debug_description: String
+    var platform: IapPlatform
+    var name_android: String
+    var one_time_purchase_offer_details_android: Array[ProductAndroidOneTimePurchaseOfferDetail]
+    var subscription_offer_details_android: Array[ProductSubscriptionAndroidOfferDetails]
+
+    static func from_dict(data: Dictionary) -> ProductAndroid
+    func to_dict() -> Dictionary
+```
+
+#### ProductIOS
+
+```gdscript
+class ProductIOS:
+    var id: String
+    var title: String
+    var description: String
+    var type: ProductType
+    var display_name: String
+    var display_price: String
+    var currency: String
+    var price: float
+    var debug_description: String
+    var platform: IapPlatform
+    var display_name_ios: String
+    var is_family_shareable_ios: bool
+    var json_representation_ios: String
+    var subscription_info_ios: SubscriptionInfoIOS
+    var type_ios: ProductTypeIOS
+
+    static func from_dict(data: Dictionary) -> ProductIOS
+    func to_dict() -> Dictionary
+```
+
+---
+
+### Purchase Types
+
+#### PurchaseAndroid
+
+```gdscript
+class PurchaseAndroid:
+    var id: String
+    var product_id: String
+    var transaction_id: String
+    var transaction_date: float
+    var purchase_state: PurchaseState
+    var platform: IapPlatform
+    var purchase_token: String
+    var is_acknowledged: bool
+    var is_auto_renewing: bool
+    var obfuscated_account_id_android: String
+    var obfuscated_profile_id_android: String
+    var order_id_android: String
+    var package_name_android: String
+    var quantity: int
+    var original_json: String
+    var signature_android: String
+
+    static func from_dict(data: Dictionary) -> PurchaseAndroid
+    func to_dict() -> Dictionary
+```
+
+#### PurchaseIOS
+
+```gdscript
+class PurchaseIOS:
+    var id: String
+    var product_id: String
+    var transaction_id: String
+    var transaction_date: float
+    var purchase_state: PurchaseState
+    var platform: IapPlatform
+    var original_transaction_id_ios: String
+    var original_purchase_date_ios: float
+    var is_upgraded_ios: bool
+    var expiration_date_ios: float
+    var app_account_token_ios: String
+    var web_order_line_item_id_ios: String
+    var json_representation_ios: String
+    var verification_result_ios: String
+    var environment_ios: String
+    var currency_ios: String
+    var price_ios: float
+    var reason_ios: String
+    var storefront_ios: String
+    var storefront_id_ios: String
+
+    static func from_dict(data: Dictionary) -> PurchaseIOS
+    func to_dict() -> Dictionary
+```
+
+---
+
+### Subscription Types
+
+#### ActiveSubscription
+
+```gdscript
+class ActiveSubscription:
+    var product_id: String
+    var is_active: bool
+    var expiration_date_ios: float
+    var auto_renewing_android: bool
+    var environment_ios: String
+    var will_expire_soon: bool  # @deprecated
+    var days_until_expiration_ios: float
+    var transaction_id: String
+    var purchase_token: String
+    var transaction_date: float
+    var base_plan_id_android: String
+    var purchase_token_android: String
+    var current_plan_id: String
+    var renewal_info_ios: RenewalInfoIOS
+
+    static func from_dict(data: Dictionary) -> ActiveSubscription
+    func to_dict() -> Dictionary
+```
+
+---
+
+### Result Types
+
+#### VoidResult
+
+```gdscript
+class VoidResult:
+    var success: bool
+    var error: String
+    var code: ErrorCode
+
+    static func from_dict(data: Dictionary) -> VoidResult
+    func to_dict() -> Dictionary
+```
+
+---
+
+## iOS-Specific API
+
+### sync_ios
+
+Sync with App Store.
+
+```gdscript
+func sync_ios() -> Types.VoidResult
+```
+
+### clear_transaction_ios
+
+Clear pending transactions from StoreKit payment queue.
+
+```gdscript
+func clear_transaction_ios() -> Types.VoidResult
+```
+
+### get_pending_transactions_ios
+
+Get pending transactions.
+
+```gdscript
+func get_pending_transactions_ios() -> Array[Types.PurchaseIOS]
+```
+
+### present_code_redemption_sheet_ios
+
+Present code redemption sheet.
+
+```gdscript
+func present_code_redemption_sheet_ios() -> Types.VoidResult
+```
+
+### show_manage_subscriptions_ios
+
+Show manage subscriptions UI.
+
+```gdscript
+func show_manage_subscriptions_ios() -> Array[Types.PurchaseIOS]
+```
+
+### begin_refund_request_ios
+
+Begin refund request for a product.
+
+```gdscript
+func begin_refund_request_ios(product_id: String) -> Types.RefundResultIOS
+```
+
+### current_entitlement_ios
+
+Get current entitlement for a product.
+
+```gdscript
+func current_entitlement_ios(sku: String) -> Variant  # Returns Types.PurchaseIOS or null
+```
+
+### latest_transaction_ios
+
+Get the latest transaction for a product.
+
+```gdscript
+func latest_transaction_ios(sku: String) -> Variant  # Returns Types.PurchaseIOS or null
+```
+
+### get_app_transaction_ios
+
+Get app transaction (iOS 16+).
+
+```gdscript
+func get_app_transaction_ios() -> Variant  # Returns Types.AppTransaction or null
+```
+
+### subscription_status_ios
+
+Get subscription status.
+
+```gdscript
+func subscription_status_ios(sku: String) -> Array[Types.SubscriptionStatusIOS]
+```
+
+### is_eligible_for_intro_offer_ios
+
+Check if eligible for intro offer.
+
+```gdscript
+func is_eligible_for_intro_offer_ios(group_id: String) -> bool
+```
+
+### get_promoted_product_ios
+
+Get promoted product.
+
+```gdscript
+func get_promoted_product_ios() -> Variant  # Returns Types.ProductIOS or null
+```
+
+### request_purchase_on_promoted_product_ios
+
+Request purchase on promoted product.
+
+```gdscript
+func request_purchase_on_promoted_product_ios() -> Types.VoidResult
+```
+
+### can_present_external_purchase_notice_ios
+
+Check if can present external purchase notice (iOS 18.2+).
+
+```gdscript
+func can_present_external_purchase_notice_ios() -> bool
+```
+
+### present_external_purchase_notice_sheet_ios
+
+Present external purchase notice sheet (iOS 18.2+).
+
+```gdscript
+func present_external_purchase_notice_sheet_ios() -> Types.ExternalPurchaseNoticeResultIOS
+```
+
+### present_external_purchase_link_ios
+
+Present external purchase link (iOS 18.2+).
+
+```gdscript
+func present_external_purchase_link_ios(url: String) -> Types.ExternalPurchaseLinkResultIOS
+```
+
+### get_receipt_data_ios
+
+Get receipt data as base64 string.
+
+```gdscript
+func get_receipt_data_ios() -> String
+```
+
+### is_transaction_verified_ios
+
+Check if transaction is verified.
+
+```gdscript
+func is_transaction_verified_ios(sku: String) -> bool
+```
+
+### get_transaction_jws_ios
+
+Get transaction JWS.
+
+```gdscript
+func get_transaction_jws_ios(sku: String) -> String
+```
+
+---
+
+## Android-Specific API
+
+### acknowledge_purchase_android
+
+Acknowledge a purchase (for non-consumables).
+
+```gdscript
+func acknowledge_purchase_android(purchase_token: String) -> Types.VoidResult
+```
+
+### consume_purchase_android
+
+Consume a purchase (for consumables).
+
+```gdscript
+func consume_purchase_android(purchase_token: String) -> Types.VoidResult
+```
+
+### check_alternative_billing_availability_android
+
+Check alternative billing availability.
+
+```gdscript
+func check_alternative_billing_availability_android() -> Types.BillingProgramAvailabilityResultAndroid
+```
+
+### show_alternative_billing_dialog_android
+
+Show alternative billing dialog.
+
+```gdscript
+func show_alternative_billing_dialog_android() -> Types.UserChoiceBillingDetails
+```
+
+### create_alternative_billing_token_android
+
+Create alternative billing token.
+
+```gdscript
+func create_alternative_billing_token_android() -> Types.BillingProgramReportingDetailsAndroid
+```
+
+### is_billing_program_available_android
+
+Check if a billing program is available (8.2.0+).
+
+```gdscript
+func is_billing_program_available_android(billing_program: Types.BillingProgramAndroid) -> Types.BillingProgramAvailabilityResultAndroid
+```
+
+### launch_external_link_android
+
+Launch external link (8.2.0+).
+
+```gdscript
+func launch_external_link_android(params: Types.LaunchExternalLinkParamsAndroid) -> Types.VoidResult
+```
+
+### create_billing_program_reporting_details_android
+
+Create billing program reporting details (8.2.0+).
+
+```gdscript
+func create_billing_program_reporting_details_android(billing_program: Types.BillingProgramAndroid) -> Types.BillingProgramReportingDetailsAndroid
+```
+
+### get_package_name_android
+
+Get the package name.
+
+```gdscript
+func get_package_name_android() -> String
+```
+
+---
+
+## Signals
+
+### purchase_updated
+
+Emitted when a purchase is updated.
+
+```gdscript
+signal purchase_updated(purchase: Dictionary)
+```
+
+**Purchase Dictionary Fields**:
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `String` | Unique purchase ID |
+| `productId` | `String` | Product identifier |
+| `transactionId` | `String` | Transaction identifier |
+| `purchaseState` | `String` | "Purchased", "Pending", etc. |
+| `transactionDate` | `int` | Purchase timestamp |
+| `platform` | `String` | "ios" or "android" |
+| `purchaseToken` | `String` | (Android) Purchase token |
+| `isAcknowledged` | `bool` | (Android) Whether acknowledged |
+
+### purchase_error
+
+Emitted when a purchase error occurs.
+
+```gdscript
+signal purchase_error(error: Dictionary)
+```
+
+**Error Dictionary Fields**:
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | `String` | Error code |
+| `message` | `String` | Error message |
+| `debugMessage` | `String` | Debug information (optional) |
+| `domain` | `String` | Error domain (iOS only) |
+
+### connected
+
+Emitted when connection is established.
+
+```gdscript
+signal connected()
+```
+
+### disconnected
+
+Emitted when connection ends.
+
+```gdscript
+signal disconnected()
+```
+
+### products_fetched
+
+Emitted when products are fetched (iOS async).
+
+```gdscript
+signal products_fetched(result: Dictionary)
+```
+
+### promoted_product_ios
+
+Emitted when a promoted product is available (iOS).
+
+```gdscript
+signal promoted_product_ios(product_id: String)
+```
+
+### user_choice_billing_android
+
+Emitted when user chooses alternative billing (Android).
+
+```gdscript
+signal user_choice_billing_android(details: Dictionary)
+```
+
+### developer_provided_billing_android
+
+Emitted when developer billing is selected (Android 8.3.0+).
+
+```gdscript
+signal developer_provided_billing_android(details: Dictionary)
+```
+
+---
+
+## Error Handling
+
+### Common Error Codes
+
+| Code | Description | Recommended Action |
+|------|-------------|-------------------|
+| `USER_CANCELED` | User cancelled purchase | No action needed |
+| `NETWORK_ERROR` | Network connectivity issue | Show retry option |
+| `ITEM_UNAVAILABLE` | Product not available | Check product setup |
+| `ITEM_ALREADY_OWNED` | User already owns product | Restore purchase |
+| `ITEM_NOT_OWNED` | Item not owned | Check purchase status |
+| `PAYMENT_INVALID` | Payment information invalid | Direct to payment settings |
+| `PAYMENT_NOT_ALLOWED` | Payments disabled on device | Show message |
+| `BILLING_UNAVAILABLE` | Billing service unavailable | Show retry option |
+| `DEVELOPER_ERROR` | Configuration error | Check setup |
+| `SERVICE_DISCONNECTED` | Service connection lost | Reconnect |
+
+### Error Handling Pattern
+
+```gdscript
+func _on_purchase_error(error: Dictionary):
+    var code = error.get("code", "")
+    var message = error.get("message", "")
+
+    match code:
+        "USER_CANCELED":
+            pass  # User cancelled, no action needed
+
+        "ITEM_ALREADY_OWNED":
+            _show_info("You already own this item")
+            iap.restore_purchases()
+
+        "NETWORK_ERROR", "SERVICE_UNAVAILABLE", "SERVICE_TIMEOUT":
+            _show_retry_dialog("Network issue", "Please check your connection")
+
+        "BILLING_UNAVAILABLE", "PAYMENT_NOT_ALLOWED":
+            _show_error("Purchases unavailable on this device")
+
+        "DEVELOPER_ERROR":
+            push_error("IAP Developer Error: %s" % message)
+            _show_error("Configuration error. Please contact support.")
+
+        _:
+            _show_error("Purchase failed: %s" % message)
+            _log_error(error)
+```
+
+### Retry Logic with Exponential Backoff
+
+```gdscript
+var _retry_count: int = 0
+const MAX_RETRIES: int = 3
+
+func _attempt_purchase_with_retry(product_id: String):
+    _retry_count = 0
+    _do_purchase(product_id)
+
+func _on_purchase_error(error: Dictionary):
+    var code = error.get("code", "")
+
+    if code in ["NETWORK_ERROR", "BILLING_UNAVAILABLE", "SERVICE_TIMEOUT"]:
+        if _retry_count < MAX_RETRIES:
+            _retry_count += 1
+            var delay = pow(2, _retry_count)
+            print("Retrying in %d seconds..." % delay)
+            await get_tree().create_timer(delay).timeout
+            _do_purchase(_last_product_id)
+        else:
+            _show_error("Purchase failed after multiple attempts")
+            _retry_count = 0
+```
+
+---
+
+## Common Patterns
+
+### Complete Purchase Flow
+
+```gdscript
+extends Node
+
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper
+
+var _products: Dictionary = {}
+var _pending_product_id: String = ""
+
+func _ready():
+    _setup_signals()
+    _initialize()
+
+func _setup_signals():
+    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_error.connect(_on_purchase_error)
+    iap.connected.connect(_on_connected)
+
+func _initialize():
+    if not iap.init_connection():
+        push_error("Failed to initialize IAP")
+        return
+
+func _on_connected():
+    _fetch_products()
+
+func _fetch_products():
+    var request = Types.ProductRequest.new()
+    request.skus = ["coins_100", "coins_500", "remove_ads", "premium_monthly"]
+    request.type = Types.ProductQueryType.ALL
+
+    var products = iap.fetch_products(request)
+    for product in products:
+        _products[product.id] = product
+        print("Loaded: %s - %s" % [product.id, product.display_price])
+
+func purchase(product_id: String):
+    if not _products.has(product_id):
+        push_error("Product not found: %s" % product_id)
+        return
+
+    _pending_product_id = product_id
+    var product = _products[product_id]
+
+    var props = Types.RequestPurchaseProps.new()
+    props.type = Types.ProductQueryType.SUBS if product.type == Types.ProductType.SUBS else Types.ProductQueryType.IN_APP
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
+
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = product_id
+
+    iap.request_purchase(props)
+
+func _on_purchase_updated(purchase: Dictionary):
+    var product_id = purchase.get("productId", "")
+    var state = purchase.get("purchaseState", "")
+
+    if state in ["Purchased", "purchased"]:
+        var is_consumable = _is_consumable(product_id)
+        var result = iap.finish_transaction_dict(purchase, is_consumable)
+
+        if result.success:
+            _grant_content(product_id)
+            _pending_product_id = ""
+    elif state in ["Pending", "pending"]:
+        _show_pending_message(product_id)
+
+func _on_purchase_error(error: Dictionary):
+    _pending_product_id = ""
+    var code = error.get("code", "")
+
+    match code:
+        "USER_CANCELED":
+            pass
+        "ITEM_ALREADY_OWNED":
+            iap.restore_purchases()
+        _:
+            _show_error(error.get("message", "Purchase failed"))
+
+func _is_consumable(product_id: String) -> bool:
+    return product_id.begins_with("coins_")
+
+func _grant_content(product_id: String):
+    match product_id:
+        "coins_100":
+            GameData.add_coins(100)
+        "coins_500":
+            GameData.add_coins(500)
+        "remove_ads":
+            GameData.remove_ads()
+        "premium_monthly":
+            GameData.set_premium(true)
+
+func _show_pending_message(product_id: String):
+    print("Purchase pending for: %s" % product_id)
+
+func _show_error(message: String):
+    print("Error: %s" % message)
+```
+
+### Subscription Management
+
+```gdscript
+func check_subscription_status():
+    var ids: Array[String] = ["premium_monthly", "premium_yearly"]
+    var active = iap.get_active_subscriptions(ids)
+
+    if active.size() > 0:
+        var sub = active[0]
+        print("Active subscription: %s" % sub.product_id)
+
+        if iap.get_platform() == "iOS":
+            var days_left = sub.days_until_expiration_ios
+            if days_left < 7:
+                _show_renewal_reminder()
+        elif iap.get_platform() == "Android":
+            if not sub.auto_renewing_android:
+                _show_renewal_reminder()
+
+func upgrade_subscription(from_id: String, to_id: String):
+    var active = iap.get_active_subscriptions([from_id])
+    if active.size() == 0:
+        return
+
+    var current_sub = active[0]
+
+    var props = Types.RequestPurchaseProps.new()
+    props.type = Types.ProductQueryType.SUBS
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [to_id]
+    props.request.google.skus = skus
+    props.request.google.purchase_token_android = current_sub.purchase_token_android
+    props.request.google.replacement_mode_android = Types.SubscriptionReplacementModeAndroid.CHARGE_FULL_PRICE
+
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = to_id
+
+    iap.request_purchase(props)
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### Products Not Loading
+
+1. Verify product IDs match store configuration
+2. Check that products are approved/active in store console
+3. Ensure agreements are signed in store console
+4. For Android: app must be uploaded to Google Play (internal testing)
+
+#### Purchases Failing
+
+1. Check device is signed into store account
+2. Verify payment method is configured
+3. For Android: use license testing accounts
+4. Check error codes for specific issues
+
+#### Connection Issues
+
+1. Ensure network connectivity
+2. Check that billing service is available
+3. Retry with exponential backoff
+
+### Debug Logging
+
+```gdscript
+func _enable_debug_logging():
+    # All IAP methods print debug info with [GodotIap] prefix
+    # Check Godot console for detailed logs
+    pass
+```
+
+### Testing Checklist
+
+- [ ] Products load correctly
+- [ ] Consumable purchase works
+- [ ] Non-consumable purchase works
+- [ ] Subscription purchase works
+- [ ] Restore purchases works
+- [ ] Error handling works
+- [ ] Transaction finishing works
+- [ ] Subscription status checking works
+
+---
+
+## Links
+
+- **GitHub Repository**: https://github.com/hyochan/godot-iap
+- **Documentation**: https://hyochan.github.io/godot-iap
+- **OpenIAP Specification**: https://openiap.dev
+- **Issues & Support**: https://github.com/hyochan/godot-iap/issues
+- **Discussions**: https://github.com/hyochan/godot-iap/discussions
+
+## License
+
+MIT License - see [LICENSE](https://github.com/hyochan/godot-iap/blob/main/LICENSE) for details.

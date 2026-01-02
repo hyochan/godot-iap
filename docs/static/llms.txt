@@ -1,0 +1,259 @@
+# godot-iap: In-App Purchase Plugin for Godot 4.x
+
+> A comprehensive, cross-platform in-app purchase (IAP) solution for Godot Engine following the OpenIAP specification.
+
+## Quick Reference
+
+- **Version**: 1.0
+- **Godot Compatibility**: 4.3+
+- **iOS Requirements**: iOS 15.0+ (StoreKit 2)
+- **Android Requirements**: API 24+ (Google Play Billing v8+)
+- **Specification**: [OpenIAP](https://openiap.dev)
+
+## Installation
+
+1. Download `godot-iap-{version}.zip` from [GitHub Releases](https://github.com/hyochan/godot-iap/releases)
+2. Extract and copy `addons/godot-iap/` to your project's `addons/` folder
+3. Enable the plugin in **Project > Project Settings > Plugins**
+
+## Quick Start
+
+```gdscript
+extends Node
+
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper  # Add GodotIapWrapper as child node
+
+func _ready():
+    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_error.connect(_on_purchase_error)
+    iap.connected.connect(_on_connected)
+    iap.init_connection()
+
+func _on_connected():
+    var request = Types.ProductRequest.new()
+    request.skus = ["your.product.id"]
+    request.type = Types.ProductQueryType.ALL
+    var products = iap.fetch_products(request)
+
+func _on_purchase_updated(purchase: Dictionary):
+    var result = iap.finish_transaction_dict(purchase, true)
+
+func _on_purchase_error(error: Dictionary):
+    print("Error: ", error.get("code"), " - ", error.get("message"))
+```
+
+## Core API Reference
+
+### Connection Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `init_connection` | `func init_connection() -> bool` | Initialize billing connection |
+| `end_connection` | `func end_connection() -> bool` | End billing connection |
+| `is_store_connected` | `func is_store_connected() -> bool` | Check connection status |
+
+### Product Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `fetch_products` | `func fetch_products(request: Types.ProductRequest) -> Array` | Fetch product details |
+
+### Purchase Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `request_purchase` | `func request_purchase(props: Types.RequestPurchaseProps) -> Variant` | Start a purchase |
+| `finish_transaction` | `func finish_transaction(purchase: Types.PurchaseInput, is_consumable: bool) -> Types.VoidResult` | Complete transaction |
+| `finish_transaction_dict` | `func finish_transaction_dict(purchase: Dictionary, is_consumable: bool) -> Types.VoidResult` | Complete transaction with Dictionary |
+| `get_available_purchases` | `func get_available_purchases() -> Array` | Get available purchases |
+| `restore_purchases` | `func restore_purchases() -> Types.VoidResult` | Restore previous purchases |
+
+### Subscription Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `get_active_subscriptions` | `func get_active_subscriptions(ids: Array[String] = []) -> Array[Types.ActiveSubscription]` | Get active subscriptions |
+| `has_active_subscriptions` | `func has_active_subscriptions(ids: Array[String] = []) -> bool` | Check if user has active subscription |
+
+### Verification Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `verify_purchase` | `func verify_purchase(props: Types.VerifyPurchaseProps) -> Variant` | Verify a purchase |
+
+## Key Types
+
+### Enums
+
+```gdscript
+enum ProductQueryType { IN_APP = 0, SUBS = 1, ALL = 2 }
+enum ProductType { IN_APP = 0, SUBS = 1 }
+enum PurchaseState { PENDING = 0, PURCHASED = 1, UNKNOWN = 2 }
+enum ErrorCode { UNKNOWN = 0, USER_CANCELLED = 1, ITEM_UNAVAILABLE = 3, ... }
+enum IapStore { UNKNOWN = 0, APPLE = 1, GOOGLE = 2 }
+```
+
+### ProductRequest
+
+```gdscript
+class ProductRequest:
+    var skus: Array[String]          # Product identifiers
+    var type: ProductQueryType       # IN_APP, SUBS, or ALL
+```
+
+### RequestPurchaseProps
+
+```gdscript
+class RequestPurchaseProps:
+    var request: RequestPurchasePropsByPlatforms
+    var type: ProductQueryType
+
+class RequestPurchasePropsByPlatforms:
+    var google: RequestPurchaseAndroidProps
+    var apple: RequestPurchaseIOSProps
+
+class RequestPurchaseAndroidProps:
+    var skus: Array[String]
+    var offer_token: String
+    var is_offer_personalized: bool
+
+class RequestPurchaseIOSProps:
+    var sku: String
+    var quantity: int
+```
+
+### Product Types (Platform-specific)
+
+```gdscript
+# Common properties on both platforms
+class ProductAndroid / ProductIOS:
+    var id: String
+    var title: String
+    var description: String
+    var display_price: String
+    var currency: String
+    var price: float
+    var type: ProductType
+```
+
+### Purchase Types (Platform-specific)
+
+```gdscript
+# Common properties on both platforms
+class PurchaseAndroid / PurchaseIOS:
+    var product_id: String
+    var transaction_id: String
+    var purchase_state: PurchaseState
+    var transaction_date: float
+```
+
+## Signals
+
+| Signal | Payload | Description |
+|--------|---------|-------------|
+| `purchase_updated` | `Dictionary` | Fired when purchase updates |
+| `purchase_error` | `Dictionary` | Fired when purchase fails |
+| `connected` | - | Connection established |
+| `disconnected` | - | Connection ended |
+| `products_fetched` | `Dictionary` | Products retrieved (iOS async) |
+
+## Common Patterns
+
+### Fetching Products
+
+```gdscript
+func fetch_all_products():
+    var request = Types.ProductRequest.new()
+    request.skus = ["coins_100", "coins_500", "premium_monthly"]
+    request.type = Types.ProductQueryType.ALL
+
+    var products = iap.fetch_products(request)
+    for product in products:
+        print("%s: %s" % [product.id, product.display_price])
+```
+
+### Purchasing Products
+
+```gdscript
+func purchase(product_id: String, is_subscription: bool = false):
+    var props = Types.RequestPurchaseProps.new()
+    props.type = Types.ProductQueryType.SUBS if is_subscription else Types.ProductQueryType.IN_APP
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+
+    # Android
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [product_id]
+
+    # iOS
+    props.request.apple = Types.RequestPurchaseIOSProps.new()
+    props.request.apple.sku = product_id
+
+    iap.request_purchase(props)
+```
+
+### Finishing Transactions
+
+```gdscript
+func _on_purchase_updated(purchase: Dictionary):
+    if purchase.get("purchaseState") == "Purchased":
+        # Verify purchase first (recommended)
+        # Then finish the transaction
+        var is_consumable = _is_consumable(purchase.get("productId", ""))
+        var result = iap.finish_transaction_dict(purchase, is_consumable)
+        if result.success:
+            _grant_content(purchase.get("productId", ""))
+```
+
+## Error Handling
+
+```gdscript
+func _on_purchase_error(error: Dictionary):
+    var code = error.get("code", "")
+    match code:
+        "USER_CANCELED":
+            pass  # User cancelled, no action needed
+        "ITEM_ALREADY_OWNED":
+            iap.restore_purchases()
+        "NETWORK_ERROR", "BILLING_UNAVAILABLE":
+            _show_retry_dialog()
+        _:
+            _show_error(error.get("message", "Purchase failed"))
+```
+
+## Common Error Codes
+
+| Code | Description |
+|------|-------------|
+| `USER_CANCELED` | User cancelled the purchase |
+| `NETWORK_ERROR` | Network connectivity issue |
+| `ITEM_UNAVAILABLE` | Product not available |
+| `ITEM_ALREADY_OWNED` | User already owns this item |
+| `BILLING_UNAVAILABLE` | Billing service unavailable |
+| `DEVELOPER_ERROR` | Configuration error |
+
+## Platform Requirements
+
+### iOS
+- iOS 15.0+
+- Xcode 16+ (Swift 6.0+)
+- In-App Purchase capability enabled
+- Products configured in App Store Connect
+
+### Android
+- API level 24+
+- Google Play Billing Library v8+
+- Products configured in Google Play Console
+- App signed and uploaded to Google Play
+
+## Links
+
+- **GitHub**: https://github.com/hyochan/godot-iap
+- **Documentation**: https://hyochan.github.io/godot-iap
+- **OpenIAP Spec**: https://openiap.dev
+- **Issues**: https://github.com/hyochan/godot-iap/issues
+
+## License
+
+MIT License

@@ -7,8 +7,9 @@ This guide provides step-by-step tutorials for implementing in-app purchases in 
 1. [Setup](#1-setup)
 2. [Basic Purchase Flow](#2-basic-purchase-flow)
 3. [Subscription Implementation](#3-subscription-implementation)
-4. [Restoring Purchases](#4-restoring-purchases)
-5. [Complete Store UI](#5-complete-store-ui)
+4. [Working with Discount Offers](#4-working-with-discount-offers)
+5. [Restoring Purchases](#5-restoring-purchases)
+6. [Complete Store UI](#6-complete-store-ui)
 
 ---
 
@@ -354,9 +355,237 @@ func manage_subscriptions():
 
 ---
 
-## 4. Restoring Purchases
+## 4. Working with Discount Offers
 
-### 4.1 Basic Restore
+### 4.1 Understanding Offer Types
+
+OpenIAP provides cross-platform offer types for handling discounts and promotional offers:
+
+```gdscript
+const Types = preload("res://addons/godot-iap/types.gd")
+
+# DiscountOffer - For one-time product discounts
+# Used for: Introductory offers, promotional pricing, one-time discounts (Android)
+
+# SubscriptionOffer - For subscription-specific offers
+# Used for: Free trials, introductory subscription pricing, promotional offers
+
+# Offer types enum
+enum DiscountOfferType {
+    INTRODUCTORY = 0,  # First-time purchase discount
+    PROMOTIONAL = 1,   # Existing/returning customer offer
+    ONE_TIME = 2,      # Android-only one-time discount (Billing 7.0+)
+}
+
+# Payment modes for subscription offers
+enum PaymentMode {
+    FREE_TRIAL = 0,    # No charge during offer period
+    PAY_AS_YOU_GO = 1, # Reduced price each period
+    PAY_UP_FRONT = 2,  # Full discounted amount upfront
+}
+```
+
+### 4.2 Accessing Product Offers
+
+Products now include discount and subscription offers:
+
+```gdscript
+func fetch_products_with_offers():
+    var request = Types.ProductRequest.new()
+    request.skus = ["com.yourgame.premium_monthly", "com.yourgame.coins_100"]
+    request.type = Types.ProductQueryType.ALL
+
+    var products = iap.fetch_products(request)
+
+    for product in products:
+        print("Product: %s" % product.id)
+
+        # Access discount offers (for one-time products)
+        if product.discount_offers and product.discount_offers.size() > 0:
+            print("  Discount Offers:")
+            for offer in product.discount_offers:
+                _display_discount_offer(offer)
+
+        # Access subscription offers (for subscriptions)
+        if product.subscription_offers and product.subscription_offers.size() > 0:
+            print("  Subscription Offers:")
+            for offer in product.subscription_offers:
+                _display_subscription_offer(offer)
+
+func _display_discount_offer(offer: Types.DiscountOffer):
+    print("    Offer ID: %s" % offer.id)
+    print("    Price: %s (%s)" % [offer.display_price, offer.currency])
+    print("    Type: %s" % _get_offer_type_name(offer.type))
+
+    # Android-specific fields
+    if OS.get_name() == "Android":
+        print("    Offer Token: %s" % offer.offer_token_android)
+        if offer.percentage_discount_android > 0:
+            print("    Discount: %d%% off" % offer.percentage_discount_android)
+
+func _display_subscription_offer(offer: Types.SubscriptionOffer):
+    print("    Offer ID: %s" % offer.id)
+    print("    Price: %s" % offer.display_price)
+    print("    Type: %s" % _get_offer_type_name(offer.type))
+    print("    Payment Mode: %s" % _get_payment_mode_name(offer.payment_mode))
+    print("    Period: %d %s(s)" % [offer.period.value, _get_period_unit_name(offer.period.unit)])
+    print("    Period Count: %d" % offer.period_count)
+
+func _get_offer_type_name(type: Types.DiscountOfferType) -> String:
+    match type:
+        Types.DiscountOfferType.INTRODUCTORY:
+            return "Introductory"
+        Types.DiscountOfferType.PROMOTIONAL:
+            return "Promotional"
+        Types.DiscountOfferType.ONE_TIME:
+            return "One-Time"
+    return "Unknown"
+
+func _get_payment_mode_name(mode: Types.PaymentMode) -> String:
+    match mode:
+        Types.PaymentMode.FREE_TRIAL:
+            return "Free Trial"
+        Types.PaymentMode.PAY_AS_YOU_GO:
+            return "Pay As You Go"
+        Types.PaymentMode.PAY_UP_FRONT:
+            return "Pay Up Front"
+    return "Unknown"
+
+func _get_period_unit_name(unit: Types.SubscriptionPeriodUnit) -> String:
+    match unit:
+        Types.SubscriptionPeriodUnit.DAY:
+            return "day"
+        Types.SubscriptionPeriodUnit.WEEK:
+            return "week"
+        Types.SubscriptionPeriodUnit.MONTH:
+            return "month"
+        Types.SubscriptionPeriodUnit.YEAR:
+            return "year"
+    return "unknown"
+```
+
+### 4.3 Purchasing with Offers (Android)
+
+On Android, subscription offers require an offer token:
+
+```gdscript
+func purchase_subscription_with_offer(subscription_id: String, offer: Types.SubscriptionOffer):
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.type = Types.ProductQueryType.SUBS
+
+    # Android configuration with offer
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [subscription_id]
+
+    # Add subscription offer with token
+    var sub_offers: Array[Types.AndroidSubscriptionOfferInput] = []
+    var offer_input = Types.AndroidSubscriptionOfferInput.new()
+    offer_input.sku = subscription_id
+    offer_input.offer_token = offer.offer_token_android
+    sub_offers.append(offer_input)
+    props.request.google.subscription_offers = sub_offers
+
+    # iOS configuration
+    props.request.apple = Types.RequestPurchaseIosProps.new()
+    props.request.apple.sku = subscription_id
+
+    iap.request_purchase(props)
+```
+
+### 4.4 Purchasing with Promotional Offers (iOS)
+
+On iOS, promotional offers require server-side signature generation:
+
+```gdscript
+func purchase_with_promotional_offer_ios(sku: String, offer: Types.SubscriptionOffer):
+    # Note: Signature must be generated server-side with your App Store Connect credentials
+    var discount_input = Types.DiscountOfferInputIOS.new()
+    discount_input.identifier = offer.id
+    discount_input.key_identifier = offer.key_identifier_ios
+    discount_input.nonce = offer.nonce_ios
+    discount_input.signature = offer.signature_ios
+    discount_input.timestamp = offer.timestamp_ios
+
+    var props = Types.RequestPurchaseProps.new()
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+    props.type = Types.ProductQueryType.SUBS
+
+    props.request.apple = Types.RequestPurchaseIosProps.new()
+    props.request.apple.sku = sku
+    props.request.apple.with_offer = discount_input
+
+    iap.request_purchase(props)
+```
+
+### 4.5 Displaying Offers in UI
+
+```gdscript
+func create_offer_ui(product) -> Control:
+    var container = VBoxContainer.new()
+
+    # Main product info
+    var title = Label.new()
+    title.text = product.title
+    container.add_child(title)
+
+    var price = Label.new()
+    price.text = "Regular: %s" % product.display_price
+    container.add_child(price)
+
+    # Show best offer if available
+    var best_offer = _find_best_offer(product)
+    if best_offer:
+        var offer_label = Label.new()
+        offer_label.add_theme_color_override("font_color", Color.GREEN)
+
+        if best_offer is Types.SubscriptionOffer:
+            match best_offer.payment_mode:
+                Types.PaymentMode.FREE_TRIAL:
+                    offer_label.text = "FREE for %d %s(s)!" % [
+                        best_offer.period_count,
+                        _get_period_unit_name(best_offer.period.unit)
+                    ]
+                Types.PaymentMode.PAY_AS_YOU_GO:
+                    offer_label.text = "Special: %s" % best_offer.display_price
+                _:
+                    offer_label.text = "Offer: %s" % best_offer.display_price
+        else:  # DiscountOffer
+            if best_offer.percentage_discount_android > 0:
+                offer_label.text = "%d%% OFF!" % best_offer.percentage_discount_android
+            else:
+                offer_label.text = "Special: %s" % best_offer.display_price
+
+        container.add_child(offer_label)
+
+    return container
+
+func _find_best_offer(product) -> Variant:
+    # Prefer free trials, then introductory, then promotional
+    if product.subscription_offers:
+        for offer in product.subscription_offers:
+            if offer.payment_mode == Types.PaymentMode.FREE_TRIAL:
+                return offer
+        for offer in product.subscription_offers:
+            if offer.type == Types.DiscountOfferType.INTRODUCTORY:
+                return offer
+        if product.subscription_offers.size() > 0:
+            return product.subscription_offers[0]
+
+    if product.discount_offers and product.discount_offers.size() > 0:
+        for offer in product.discount_offers:
+            if offer.type == Types.DiscountOfferType.INTRODUCTORY:
+                return offer
+        return product.discount_offers[0]
+
+    return null
+```
+
+---
+
+## 5. Restoring Purchases
+
+### 5.1 Basic Restore
 
 ```gdscript
 func restore_purchases():
@@ -392,7 +621,7 @@ func _process_restore(purchase):
     print("Restored: ", product_id)
 ```
 
-### 4.2 Restore with UI Feedback
+### 5.2 Restore with UI Feedback
 
 ```gdscript
 signal restore_completed(count: int)
@@ -448,9 +677,9 @@ func _on_restore_error(error: String):
 
 ---
 
-## 5. Complete Store UI
+## 6. Complete Store UI
 
-### 5.1 Store Manager (Autoload)
+### 6.1 Store Manager (Autoload)
 
 ```gdscript
 # store_manager.gd
@@ -597,7 +826,7 @@ func restore():
     return result.success if result else false
 ```
 
-### 5.2 Store UI
+### 6.2 Store UI
 
 ```gdscript
 # store_ui.gd
@@ -679,7 +908,7 @@ func _show_dialog(title: String, message: String):
     dialog.confirmed.connect(dialog.queue_free)
 ```
 
-### 5.3 Product Button
+### 6.3 Product Button
 
 ```gdscript
 # product_button.gd

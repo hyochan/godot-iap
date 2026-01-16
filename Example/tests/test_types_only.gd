@@ -47,6 +47,11 @@ func _run_all_tests() -> void:
 	# Enum tests
 	_test_enums()
 
+	# New types tests (v1.3.12)
+	_test_discount_offer()
+	_test_subscription_offer()
+	_test_subscription_period()
+
 
 # ============================================
 # ProductRequest Tests
@@ -198,6 +203,148 @@ func _test_enums() -> void:
 
 	# ErrorCode
 	_assert_equal(Types.ErrorCode.UNKNOWN, 0, "ErrorCode.UNKNOWN should be 0")
+
+
+# ============================================
+# DiscountOffer Tests (v1.3.12)
+# ============================================
+
+func _test_discount_offer() -> void:
+	print("Testing DiscountOffer...")
+
+	# Test creation
+	var offer = Types.DiscountOffer.new()
+	offer.id = "discount_offer_123"
+	offer.display_price = "$4.99"
+	offer.price = 4.99
+	offer.currency = "USD"
+	offer.type = Types.DiscountOfferType.INTRODUCTORY
+	offer.offer_token_android = "token_abc"
+
+	_assert_equal(offer.id, "discount_offer_123", "DiscountOffer id should match")
+	_assert_equal(offer.display_price, "$4.99", "display_price should match")
+	_assert_equal(offer.price, 4.99, "price should match")
+	_assert_equal(offer.currency, "USD", "currency should match")
+	_assert_equal(offer.type, Types.DiscountOfferType.INTRODUCTORY, "type should be INTRODUCTORY")
+	_assert_equal(offer.offer_token_android, "token_abc", "offer_token_android should match")
+
+	# Test to_dict
+	var dict = offer.to_dict()
+	_assert_equal(dict["id"], "discount_offer_123", "to_dict id should match")
+	_assert_equal(dict["displayPrice"], "$4.99", "to_dict should use camelCase")
+	_assert_equal(dict["price"], 4.99, "to_dict price should match")
+	_assert_equal(dict["type"], "introductory", "to_dict type should be string")
+
+	# Test from_dict
+	var from_dict_data = {
+		"id": "parsed_offer",
+		"displayPrice": "$9.99",
+		"price": 9.99,
+		"currency": "EUR",
+		"type": "promotional",
+		"offerTokenAndroid": "parsed_token"
+	}
+	var parsed = Types.DiscountOffer.from_dict(from_dict_data)
+	_assert_equal(parsed.id, "parsed_offer", "from_dict id should match")
+	_assert_equal(parsed.display_price, "$9.99", "from_dict display_price should match")
+	_assert_equal(parsed.type, Types.DiscountOfferType.PROMOTIONAL, "from_dict type should be PROMOTIONAL")
+
+	# Test DiscountOfferType enum
+	_assert_equal(Types.DiscountOfferType.INTRODUCTORY, 0, "DiscountOfferType.INTRODUCTORY should be 0")
+	_assert_equal(Types.DiscountOfferType.PROMOTIONAL, 1, "DiscountOfferType.PROMOTIONAL should be 1")
+	_assert_equal(Types.DiscountOfferType.ONE_TIME, 2, "DiscountOfferType.ONE_TIME should be 2")
+
+
+# ============================================
+# SubscriptionOffer Tests (v1.3.12)
+# ============================================
+
+func _test_subscription_offer() -> void:
+	print("Testing SubscriptionOffer...")
+
+	# Test creation
+	var offer = Types.SubscriptionOffer.new()
+	offer.id = "sub_offer_123"
+	offer.display_price = "$9.99/month"
+	offer.price = 9.99
+	offer.currency = "USD"
+	offer.type = Types.DiscountOfferType.INTRODUCTORY
+	offer.period_count = 3
+	offer.payment_mode = Types.PaymentMode.FREE_TRIAL
+	offer.key_identifier_ios = "key_123"
+	offer.base_plan_id_android = "base_plan_monthly"
+
+	_assert_equal(offer.id, "sub_offer_123", "SubscriptionOffer id should match")
+	_assert_equal(offer.display_price, "$9.99/month", "display_price should match")
+	_assert_equal(offer.price, 9.99, "price should match")
+	_assert_equal(offer.period_count, 3, "period_count should match")
+	_assert_equal(offer.payment_mode, Types.PaymentMode.FREE_TRIAL, "payment_mode should be FREE_TRIAL")
+	_assert_equal(offer.key_identifier_ios, "key_123", "key_identifier_ios should match")
+	_assert_equal(offer.base_plan_id_android, "base_plan_monthly", "base_plan_id_android should match")
+
+	# Test to_dict
+	var dict = offer.to_dict()
+	_assert_equal(dict["id"], "sub_offer_123", "to_dict id should match")
+	_assert_equal(dict["displayPrice"], "$9.99/month", "to_dict should use camelCase")
+	_assert_equal(dict["periodCount"], 3, "to_dict periodCount should match")
+
+	# Test from_dict
+	var from_dict_data = {
+		"id": "parsed_sub_offer",
+		"displayPrice": "$4.99/week",
+		"price": 4.99,
+		"currency": "USD",
+		"type": "promotional",
+		"periodCount": 1,
+		"paymentMode": "pay-as-you-go",
+		"keyIdentifierIOS": "parsed_key",
+		"basePlanIdAndroid": "weekly_base"
+	}
+	var parsed = Types.SubscriptionOffer.from_dict(from_dict_data)
+	_assert_equal(parsed.id, "parsed_sub_offer", "from_dict id should match")
+	_assert_equal(parsed.period_count, 1, "from_dict period_count should match")
+	_assert_equal(parsed.payment_mode, Types.PaymentMode.PAY_AS_YOU_GO, "from_dict payment_mode should be PAY_AS_YOU_GO")
+
+	# Test PaymentMode enum
+	_assert_equal(Types.PaymentMode.FREE_TRIAL, 0, "PaymentMode.FREE_TRIAL should be 0")
+	_assert_equal(Types.PaymentMode.PAY_AS_YOU_GO, 1, "PaymentMode.PAY_AS_YOU_GO should be 1")
+	_assert_equal(Types.PaymentMode.PAY_UP_FRONT, 2, "PaymentMode.PAY_UP_FRONT should be 2")
+
+
+# ============================================
+# SubscriptionPeriod Tests (v1.3.12)
+# ============================================
+
+func _test_subscription_period() -> void:
+	print("Testing SubscriptionPeriod...")
+
+	# Test creation
+	var period = Types.SubscriptionPeriod.new()
+	period.unit = Types.SubscriptionPeriodUnit.MONTH
+	period.value = 1
+
+	_assert_equal(period.unit, Types.SubscriptionPeriodUnit.MONTH, "unit should be MONTH")
+	_assert_equal(period.value, 1, "value should be 1")
+
+	# Test to_dict
+	var dict = period.to_dict()
+	_assert_equal(dict["unit"], "month", "to_dict unit should be string")
+	_assert_equal(dict["value"], 1, "to_dict value should match")
+
+	# Test from_dict
+	var from_dict_data = {
+		"unit": "year",
+		"value": 1
+	}
+	var parsed = Types.SubscriptionPeriod.from_dict(from_dict_data)
+	_assert_equal(parsed.unit, Types.SubscriptionPeriodUnit.YEAR, "from_dict unit should be YEAR")
+	_assert_equal(parsed.value, 1, "from_dict value should match")
+
+	# Test SubscriptionPeriodUnit enum
+	_assert_equal(Types.SubscriptionPeriodUnit.DAY, 0, "SubscriptionPeriodUnit.DAY should be 0")
+	_assert_equal(Types.SubscriptionPeriodUnit.WEEK, 1, "SubscriptionPeriodUnit.WEEK should be 1")
+	_assert_equal(Types.SubscriptionPeriodUnit.MONTH, 2, "SubscriptionPeriodUnit.MONTH should be 2")
+	_assert_equal(Types.SubscriptionPeriodUnit.YEAR, 3, "SubscriptionPeriodUnit.YEAR should be 3")
 
 
 # ============================================

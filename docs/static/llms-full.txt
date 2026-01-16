@@ -24,7 +24,7 @@ godot-iap is an In-App Purchase plugin for Godot Engine that follows the [OpenIA
 
 ### Version Information
 
-- **Current Version**: 1.0
+- **Current Version**: 1.3.12
 - **Godot Compatibility**: 4.3+
 - **iOS Requirements**: iOS 15.0+, Xcode 16+ (Swift 6.0+)
 - **Android Requirements**: API level 24+, Google Play Billing Library v8+
@@ -562,6 +562,39 @@ enum SubscriptionReplacementModeAndroid {
 }
 ```
 
+#### DiscountOfferType (v1.3.12)
+
+```gdscript
+enum DiscountOfferType {
+    INTRODUCTORY = 0,  # Introductory offer for new subscribers
+    PROMOTIONAL = 1,   # Promotional offer for existing/returning subscribers
+    ONE_TIME = 2       # One-time product discount (Android only, Billing 7.0+)
+}
+```
+
+#### PaymentMode (v1.3.12)
+
+```gdscript
+enum PaymentMode {
+    FREE_TRIAL = 0,    # Free trial period - no charge during offer
+    PAY_AS_YOU_GO = 1, # Pay each period at reduced price
+    PAY_UP_FRONT = 2,  # Pay full discounted amount upfront
+    UNKNOWN = 3        # Unknown or unspecified payment mode
+}
+```
+
+#### SubscriptionPeriodUnit (v1.3.12)
+
+```gdscript
+enum SubscriptionPeriodUnit {
+    DAY = 0,
+    WEEK = 1,
+    MONTH = 2,
+    YEAR = 3,
+    UNKNOWN = 4
+}
+```
+
 ---
 
 ### Input Types
@@ -750,6 +783,119 @@ class ActiveSubscription:
 
     static func from_dict(data: Dictionary) -> ActiveSubscription
     func to_dict() -> Dictionary
+```
+
+---
+
+### Offer Types (v1.3.12)
+
+#### DiscountOffer
+
+Cross-platform discount offer for one-time products. Use `SubscriptionOffer` for subscription-specific offers.
+
+```gdscript
+class DiscountOffer:
+    var id: String                              # Unique identifier for the offer
+    var display_price: String                   # Formatted display price (e.g., "$4.99")
+    var price: float                            # Numeric price value
+    var currency: String                        # Currency code (ISO 4217, e.g., "USD")
+    var type: DiscountOfferType                 # INTRODUCTORY, PROMOTIONAL, or ONE_TIME
+    var offer_token_android: String             # [Android] Offer token required for purchase
+    var offer_tags_android: Array[String]       # [Android] Tags associated with this offer
+    var full_price_micros_android: String       # [Android] Original price in micro-units
+    var percentage_discount_android: int        # [Android] Percentage discount (e.g., 33 for 33% off)
+    var discount_amount_micros_android: String  # [Android] Fixed discount in micro-units
+    var formatted_discount_amount_android: String  # [Android] Formatted discount string
+    var valid_time_window_android: ValidTimeWindowAndroid  # [Android] Offer validity window
+    var limited_quantity_info_android: LimitedQuantityInfoAndroid  # [Android] Quantity limits
+    var preorder_details_android: PreorderDetailsAndroid  # [Android] Pre-order details
+    var rental_details_android: RentalDetailsAndroid  # [Android] Rental details
+
+    static func from_dict(data: Dictionary) -> DiscountOffer
+    func to_dict() -> Dictionary
+```
+
+**Usage Example:**
+
+```gdscript
+func display_product_discount(product):
+    if product.discount_offers and product.discount_offers.size() > 0:
+        var offer = product.discount_offers[0]
+        print("Discount: %s (was %s)" % [offer.display_price, product.display_price])
+        if offer.percentage_discount_android > 0:
+            print("Save %d%%" % offer.percentage_discount_android)
+```
+
+#### SubscriptionOffer
+
+Cross-platform subscription offer including free trials, introductory pricing, and promotional offers.
+
+```gdscript
+class SubscriptionOffer:
+    var id: String                          # Unique identifier for the offer
+    var display_price: String               # Formatted display price (e.g., "$9.99/month")
+    var price: float                        # Numeric price value
+    var currency: String                    # Currency code (ISO 4217, e.g., "USD")
+    var type: DiscountOfferType             # INTRODUCTORY or PROMOTIONAL
+    var period: SubscriptionPeriod          # Duration of offer period
+    var period_count: int                   # Number of periods the offer applies
+    var payment_mode: PaymentMode           # FREE_TRIAL, PAY_AS_YOU_GO, or PAY_UP_FRONT
+    var key_identifier_ios: String          # [iOS] Key identifier for signature validation
+    var nonce_ios: String                   # [iOS] Cryptographic nonce (UUID)
+    var signature_ios: String               # [iOS] Server-generated signature
+    var timestamp_ios: float                # [iOS] Signature timestamp
+    var number_of_periods_ios: int          # [iOS] Number of billing periods
+    var localized_price_ios: String         # [iOS] Localized price string
+    var base_plan_id_android: String        # [Android] Base plan identifier
+    var offer_token_android: String         # [Android] Offer token for purchase
+    var offer_tags_android: Array[String]   # [Android] Tags for the offer
+
+    static func from_dict(data: Dictionary) -> SubscriptionOffer
+    func to_dict() -> Dictionary
+```
+
+**Usage Example:**
+
+```gdscript
+func find_free_trial(product) -> Types.SubscriptionOffer:
+    if product.subscription_offers:
+        for offer in product.subscription_offers:
+            if offer.payment_mode == Types.PaymentMode.FREE_TRIAL:
+                return offer
+    return null
+
+func display_trial_info(offer: Types.SubscriptionOffer):
+    if offer.payment_mode == Types.PaymentMode.FREE_TRIAL:
+        print("Free for %d %s(s)!" % [offer.period_count, _get_unit_name(offer.period.unit)])
+```
+
+#### SubscriptionPeriod
+
+Represents a subscription period duration.
+
+```gdscript
+class SubscriptionPeriod:
+    var unit: SubscriptionPeriodUnit   # DAY, WEEK, MONTH, YEAR, or UNKNOWN
+    var value: int                     # Number of units
+
+    static func from_dict(data: Dictionary) -> SubscriptionPeriod
+    func to_dict() -> Dictionary
+```
+
+**Usage Example:**
+
+```gdscript
+func format_period(period: Types.SubscriptionPeriod) -> String:
+    var unit_name = ""
+    match period.unit:
+        Types.SubscriptionPeriodUnit.DAY: unit_name = "day"
+        Types.SubscriptionPeriodUnit.WEEK: unit_name = "week"
+        Types.SubscriptionPeriodUnit.MONTH: unit_name = "month"
+        Types.SubscriptionPeriodUnit.YEAR: unit_name = "year"
+
+    if period.value == 1:
+        return "1 %s" % unit_name
+    return "%d %ss" % [period.value, unit_name]
 ```
 
 ---

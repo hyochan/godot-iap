@@ -4,7 +4,7 @@
 
 ## Quick Reference
 
-- **Version**: 1.0
+- **Version**: 1.3.12
 - **Godot Compatibility**: 4.3+
 - **iOS Requirements**: iOS 15.0+ (StoreKit 2)
 - **Android Requirements**: API 24+ (Google Play Billing v8+)
@@ -93,6 +93,11 @@ enum ProductType { IN_APP = 0, SUBS = 1 }
 enum PurchaseState { PENDING = 0, PURCHASED = 1, UNKNOWN = 2 }
 enum ErrorCode { UNKNOWN = 0, USER_CANCELLED = 1, ITEM_UNAVAILABLE = 3, ... }
 enum IapStore { UNKNOWN = 0, APPLE = 1, GOOGLE = 2 }
+
+# New in v1.3.12 - Discount/Offer types
+enum DiscountOfferType { INTRODUCTORY = 0, PROMOTIONAL = 1, ONE_TIME = 2 }
+enum PaymentMode { FREE_TRIAL = 0, PAY_AS_YOU_GO = 1, PAY_UP_FRONT = 2, UNKNOWN = 3 }
+enum SubscriptionPeriodUnit { DAY = 0, WEEK = 1, MONTH = 2, YEAR = 3, UNKNOWN = 4 }
 ```
 
 ### ProductRequest
@@ -147,6 +152,39 @@ class PurchaseAndroid / PurchaseIOS:
     var transaction_id: String
     var purchase_state: PurchaseState
     var transaction_date: float
+```
+
+### Discount & Subscription Offers (v1.3.12)
+
+```gdscript
+# Cross-platform discount offer for one-time products
+class DiscountOffer:
+    var id: String
+    var display_price: String
+    var price: float
+    var currency: String
+    var type: DiscountOfferType          # INTRODUCTORY, PROMOTIONAL, ONE_TIME
+    var offer_token_android: String      # Required for Android purchase
+    var percentage_discount_android: int # Discount percentage (Android)
+
+# Cross-platform subscription offer
+class SubscriptionOffer:
+    var id: String
+    var display_price: String
+    var price: float
+    var currency: String
+    var type: DiscountOfferType          # INTRODUCTORY, PROMOTIONAL
+    var period: SubscriptionPeriod       # Duration of offer period
+    var period_count: int                # Number of periods
+    var payment_mode: PaymentMode        # FREE_TRIAL, PAY_AS_YOU_GO, PAY_UP_FRONT
+    var key_identifier_ios: String       # iOS promotional offer key
+    var base_plan_id_android: String     # Android base plan ID
+    var offer_token_android: String      # Android offer token
+
+# Subscription period
+class SubscriptionPeriod:
+    var unit: SubscriptionPeriodUnit     # DAY, WEEK, MONTH, YEAR
+    var value: int                       # Number of units
 ```
 
 ## Signals

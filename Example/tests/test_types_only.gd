@@ -236,12 +236,13 @@ func _test_discount_offer() -> void:
 	_assert_equal(dict["type"], "introductory", "to_dict type should be string")
 
 	# Test from_dict
+	# Note: from_dict expects enum values as integers, not strings
 	var from_dict_data = {
 		"id": "parsed_offer",
 		"displayPrice": "$9.99",
 		"price": 9.99,
 		"currency": "EUR",
-		"type": "promotional",
+		"type": Types.DiscountOfferType.PROMOTIONAL,
 		"offerTokenAndroid": "parsed_token"
 	}
 	var parsed = Types.DiscountOffer.from_dict(from_dict_data)
@@ -289,14 +290,15 @@ func _test_subscription_offer() -> void:
 	_assert_equal(dict["periodCount"], 3, "to_dict periodCount should match")
 
 	# Test from_dict
+	# Note: from_dict expects enum values as integers, not strings
 	var from_dict_data = {
 		"id": "parsed_sub_offer",
 		"displayPrice": "$4.99/week",
 		"price": 4.99,
 		"currency": "USD",
-		"type": "promotional",
+		"type": Types.DiscountOfferType.PROMOTIONAL,
 		"periodCount": 1,
-		"paymentMode": "pay-as-you-go",
+		"paymentMode": Types.PaymentMode.PAY_AS_YOU_GO,
 		"keyIdentifierIOS": "parsed_key",
 		"basePlanIdAndroid": "weekly_base"
 	}
@@ -332,8 +334,9 @@ func _test_subscription_period() -> void:
 	_assert_equal(dict["value"], 1, "to_dict value should match")
 
 	# Test from_dict
+	# Note: from_dict expects enum values as integers, not strings
 	var from_dict_data = {
-		"unit": "year",
+		"unit": Types.SubscriptionPeriodUnit.YEAR,
 		"value": 1
 	}
 	var parsed = Types.SubscriptionPeriod.from_dict(from_dict_data)

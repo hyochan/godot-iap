@@ -10,286 +10,323 @@ import IapKitBanner from '@site/src/uis/IapKitBanner';
 
 <IapKitBanner />
 
-This guide explains how to handle subscription offers (pricing plans) when purchasing subscriptions on iOS and Android platforms.
+This guide explains how to work with subscription offers using the OpenIAP typed API. Subscription offers include introductory pricing, free trials, and promotional discounts available on both iOS and Android platforms.
 
 ## Overview
 
-Subscription offers represent different pricing plans for the same subscription product:
+godot-iap provides cross-platform `SubscriptionOffer` and `DiscountOffer` types that normalize the differences between iOS and Android offer systems:
 
-- **Base Plan**: The standard pricing for a subscription
-- **Introductory Offers**: Special pricing for new subscribers (free trial, discounted period)
-- **Promotional Offers**: Limited-time discounts configured in the app stores
+```gdscript
+const Types = preload("res://addons/godot-iap/types.gd")
+
+# Cross-platform SubscriptionOffer type
+class SubscriptionOffer:
+    var id: String
+    var display_price: String
+    var price: float
+    var currency: String
+    var type: DiscountOfferType          # INTRODUCTORY, PROMOTIONAL
+    var period: SubscriptionPeriod       # Duration of offer period
+    var period_count: int                # Number of periods
+    var payment_mode: PaymentMode        # FREE_TRIAL, PAY_AS_YOU_GO, PAY_UP_FRONT
+    var key_identifier_ios: String       # iOS promotional offer key
+    var base_plan_id_android: String     # Android base plan ID
+    var offer_token_android: String      # Android offer token (required for purchase)
+```
+
+## Offer Types
+
+### DiscountOfferType Enum
+
+```gdscript
+enum DiscountOfferType {
+    INTRODUCTORY = 0,  # First-time subscriber offers (free trials, intro pricing)
+    PROMOTIONAL = 1,   # Limited-time promotional discounts
+    ONE_TIME = 2       # One-time discount (for consumables/non-consumables)
+}
+```
+
+### PaymentMode Enum
+
+```gdscript
+enum PaymentMode {
+    FREE_TRIAL = 0,     # No charge during offer period
+    PAY_AS_YOU_GO = 1,  # Discounted recurring payments
+    PAY_UP_FRONT = 2,   # Single discounted payment upfront
+    UNKNOWN = 3
+}
+```
+
+### SubscriptionPeriodUnit Enum
+
+```gdscript
+enum SubscriptionPeriodUnit {
+    DAY = 0,
+    WEEK = 1,
+    MONTH = 2,
+    YEAR = 3,
+    UNKNOWN = 4
+}
+```
 
 ## Platform Differences
 
-At a glance:
-
-- **Android**: Subscription offers are required when purchasing subscriptions. You must pass `offerToken` from `fetch_subscriptions()`.
-- **iOS**: Base plan is used by default. Promotional discounts are optional via `withOffer`.
+| Feature | Android | iOS |
+|---------|---------|-----|
+| Offer Token | **Required** for all subscription purchases | Not used |
+| Base Plan | Must specify via `offer_token_android` | Used by default |
+| Introductory Offers | Via offer token | Applied automatically when eligible |
+| Promotional Offers | Via offer token | Requires server-signed signature |
 
 :::tip
-Always fetch subscriptions first; offers only exist after `fetch_subscriptions()`.
+On Android, you **must** provide `offer_token_android` when purchasing subscriptions. On iOS, the base plan is used automatically, with promotional offers requiring additional signature parameters.
 :::
 
-## Android Subscription Offers
-
-Android requires explicit specification of subscription offers when purchasing. Each offer is identified by an `offerToken` obtained from `fetch_subscriptions()`.
-
-### Required for Android Subscriptions
-
-Unlike iOS, Android subscriptions **must** include `offerToken` in the purchase request. Without it, the purchase may fail with:
-
-```text
-The number of skus must match the number of offerTokens
-```
-
-### Getting Offer Tokens
+## Fetching Subscriptions with Offers
 
 ```gdscript
-var iap: GodotIap
-var subscriptions: Array = []
+extends Node
+
+const Types = preload("res://addons/godot-iap/types.gd")
+
+var products: Array = []
 
 func _ready():
-    if Engine.has_singleton("GodotIap"):
-        iap = Engine.get_singleton("GodotIap")
-        iap.subscriptions_fetched.connect(_on_subscriptions_fetched)
-        _initialize()
+    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
+    GodotIapPlugin.purchase_error.connect(_on_purchase_error)
+    GodotIapPlugin.products_fetched.connect(_on_products_fetched)
 
-func _initialize():
-    var result = JSON.parse_string(iap.init_connection())
-    if result.get("success", false):
-        # Fetch subscriptions
-        var sub_ids = ["premium_monthly", "premium_yearly"]
-        iap.fetch_subscriptions(JSON.stringify(sub_ids))
+    if GodotIapPlugin.init_connection():
+        _fetch_subscriptions()
 
-func _on_subscriptions_fetched(fetched_subs: Array):
-    subscriptions = fetched_subs
+func _fetch_subscriptions():
+    var request = Types.ProductRequest.new()
+    var sku_list: Array[String] = ["premium_monthly", "premium_yearly"]
+    request.skus = sku_list
+    request.type = Types.ProductQueryType.SUBS
 
-    for sub in subscriptions:
-        print("Subscription: ", sub.productId)
+    products = GodotIapPlugin.fetch_products(request)
+    _process_subscription_offers()
 
-        # Access offer details (Android)
-        var offers = sub.get("subscriptionOfferDetailsAndroid", [])
-        for offer in offers:
-            print("  Offer Token: ", offer.offerToken)
-            print("  Base Plan ID: ", offer.basePlanId)
-            print("  Offer ID: ", offer.get("offerId", "Base Plan"))
+func _on_products_fetched(result: Dictionary):
+    # Called asynchronously on iOS
+    if result.has("products"):
+        products = result["products"]
+        _process_subscription_offers()
 ```
 
-### Purchase with Offers
+## Accessing Subscription Offers
+
+### Android: subscriptionOfferDetailsAndroid
+
+On Android, subscription offers are available in the `subscription_offer_details_android` property:
 
 ```gdscript
-func purchase_subscription(subscription_id: String):
-    var subscription = _find_subscription(subscription_id)
-    if not subscription:
-        print("Subscription not found")
+func _process_subscription_offers():
+    for product in products:
+        if product.type != Types.ProductType.SUBS:
+            continue
+
+        print("Subscription: %s" % product.id)
+
+        # Android: Access offer details
+        if product.subscription_offer_details_android:
+            for offer in product.subscription_offer_details_android:
+                print("  Offer: %s" % (offer.offer_id if offer.offer_id else "Base Plan"))
+                print("    Base Plan ID: %s" % offer.base_plan_id)
+                print("    Offer Token: %s" % offer.offer_token)
+
+                # Access pricing phases
+                if offer.pricing_phases:
+                    for phase in offer.pricing_phases.pricing_phase_list:
+                        print("    Price: %s (%s)" % [phase.formatted_price, phase.billing_period])
+```
+
+### iOS: subscriptionInfoIOS
+
+On iOS, subscription info including introductory offers is available in `subscription_info_ios`:
+
+```gdscript
+func _process_ios_subscription(product):
+    print("Subscription: %s - %s" % [product.id, product.display_price])
+
+    if product.subscription_info_ios:
+        var sub_info = product.subscription_info_ios
+
+        # Check for introductory offer
+        if sub_info.introductory_offer:
+            var intro = sub_info.introductory_offer
+            print("  Introductory Offer:")
+            print("    Price: %s" % intro.display_price)
+            print("    Payment Mode: %s" % _payment_mode_string(intro.payment_mode))
+            print("    Period: %d %s(s)" % [intro.period_count, _period_unit_string(intro.period.unit)])
+
+        # Check for promotional discounts
+        if product.discounts_ios:
+            for discount in product.discounts_ios:
+                print("  Promotional Discount: %s" % discount.id)
+                print("    Price: %s" % discount.display_price)
+
+func _payment_mode_string(mode: Types.PaymentMode) -> String:
+    match mode:
+        Types.PaymentMode.FREE_TRIAL:
+            return "Free Trial"
+        Types.PaymentMode.PAY_AS_YOU_GO:
+            return "Pay As You Go"
+        Types.PaymentMode.PAY_UP_FRONT:
+            return "Pay Up Front"
+        _:
+            return "Unknown"
+
+func _period_unit_string(unit: Types.SubscriptionPeriodUnit) -> String:
+    match unit:
+        Types.SubscriptionPeriodUnit.DAY:
+            return "day"
+        Types.SubscriptionPeriodUnit.WEEK:
+            return "week"
+        Types.SubscriptionPeriodUnit.MONTH:
+            return "month"
+        Types.SubscriptionPeriodUnit.YEAR:
+            return "year"
+        _:
+            return "unknown"
+```
+
+## Purchasing Subscriptions with Offers
+
+### Android: Using Offer Tokens
+
+On Android, you **must** provide the `offer_token` when purchasing subscriptions:
+
+```gdscript
+func purchase_subscription(product_id: String, offer_token: String = ""):
+    var product = _find_product(product_id)
+    if not product:
+        push_error("Product not found: %s" % product_id)
         return
 
-    var params = {
-        "sku": subscription_id,
-        "type": "subs"
-    }
+    var props = Types.RequestPurchaseProps.new()
+    props.type = Types.ProductQueryType.SUBS
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
 
-    # Android: Add offer token
-    if OS.get_name() == "Android":
-        var offers = subscription.get("subscriptionOfferDetailsAndroid", [])
-        if offers.size() > 0:
-            # Use the first available offer (base plan)
-            params["offerToken"] = offers[0].offerToken
-        else:
-            print("No subscription offers available")
-            return
+    # Android setup (required)
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
 
-    iap.request_purchase(JSON.stringify(params))
+    # Get offer token if not provided
+    if offer_token.is_empty():
+        offer_token = _get_default_offer_token(product)
 
-func _find_subscription(subscription_id: String) -> Dictionary:
-    for sub in subscriptions:
-        if sub.productId == subscription_id:
-            return sub
-    return {}
-```
+    if offer_token.is_empty():
+        push_error("No offer token available for subscription")
+        return
 
-### Understanding Offer Details
+    props.request.google.offer_token = offer_token
 
-Each `subscriptionOfferDetailsAndroid` item contains:
+    # iOS setup
+    props.request.apple = Types.RequestPurchaseIosProps.new()
+    props.request.apple.sku = product_id
 
-```gdscript
-# Android Subscription Offer Structure
-{
-    "basePlanId": "monthly-base",      # Base plan identifier
-    "offerId": "free-trial-7d",        # Offer identifier (null for base plan)
-    "offerTags": ["introductory"],     # Tags associated with the offer
-    "offerToken": "AEuhp4...",         # Token required for purchase
-    "pricingPhases": {
-        "pricingPhaseList": [
-            {
-                "billingPeriod": "P1M",
-                "formattedPrice": "$9.99",
-                "priceAmountMicros": 9990000,
-                "priceCurrencyCode": "USD",
-                "recurrenceMode": 1
-            }
-        ]
-    }
-}
+    GodotIapPlugin.request_purchase(props)
+
+func _get_default_offer_token(product) -> String:
+    if not product.subscription_offer_details_android:
+        return ""
+
+    # Return first available offer token (usually base plan)
+    for offer in product.subscription_offer_details_android:
+        if offer.offer_token:
+            return offer.offer_token
+
+    return ""
+
+func _find_product(product_id: String):
+    for product in products:
+        if product.id == product_id:
+            return product
+    return null
 ```
 
 ### Selecting Specific Offers
 
+Allow users to choose between different offers:
+
 ```gdscript
-func get_offers_for_subscription(subscription_id: String) -> Array:
-    var subscription = _find_subscription(subscription_id)
-    if not subscription:
+func get_available_offers(product_id: String) -> Array:
+    var product = _find_product(product_id)
+    if not product:
         return []
 
-    return subscription.get("subscriptionOfferDetailsAndroid", [])
+    var offers: Array = []
 
-func get_base_plan_offer(subscription_id: String) -> Dictionary:
-    var offers = get_offers_for_subscription(subscription_id)
-    for offer in offers:
-        # Base plan has no offerId
-        if offer.get("offerId", null) == null:
-            return offer
-    return offers[0] if offers.size() > 0 else {}
+    if product.subscription_offer_details_android:
+        for offer_detail in product.subscription_offer_details_android:
+            var offer = {
+                "id": offer_detail.offer_id if offer_detail.offer_id else "base_plan",
+                "base_plan_id": offer_detail.base_plan_id,
+                "offer_token": offer_detail.offer_token,
+                "is_base_plan": offer_detail.offer_id == null or offer_detail.offer_id.is_empty()
+            }
 
-func get_introductory_offer(subscription_id: String) -> Dictionary:
-    var offers = get_offers_for_subscription(subscription_id)
-    for offer in offers:
-        var offer_id = offer.get("offerId", "")
-        if "intro" in offer_id or "trial" in offer_id:
-            return offer
-    return {}
+            # Get pricing info
+            if offer_detail.pricing_phases and offer_detail.pricing_phases.pricing_phase_list.size() > 0:
+                var first_phase = offer_detail.pricing_phases.pricing_phase_list[0]
+                offer["display_price"] = first_phase.formatted_price
+                offer["billing_period"] = first_phase.billing_period
 
-func purchase_with_specific_offer(subscription_id: String, offer_type: String):
-    var offer: Dictionary
+            offers.append(offer)
 
-    match offer_type:
-        "base":
-            offer = get_base_plan_offer(subscription_id)
-        "introductory":
-            offer = get_introductory_offer(subscription_id)
-        _:
-            offer = get_base_plan_offer(subscription_id)
+    return offers
 
-    if offer.is_empty():
-        print("No suitable offer found")
-        return
-
-    var params = {
-        "sku": subscription_id,
-        "type": "subs",
-        "offerToken": offer.offerToken
-    }
-
-    iap.request_purchase(JSON.stringify(params))
+func purchase_with_selected_offer(product_id: String, selected_offer: Dictionary):
+    purchase_subscription(product_id, selected_offer.get("offer_token", ""))
 ```
 
-## iOS Subscription Offers
+### iOS: Promotional Offers with Signatures
 
-iOS handles subscription offers differently - the base plan is used by default, and promotional offers are optional.
-
-### Base Plan (Default)
-
-For standard subscription purchases, no special offer specification is needed:
+For iOS promotional offers, you need a server-generated signature:
 
 ```gdscript
-func purchase_subscription_ios(subscription_id: String):
-    var params = {
-        "sku": subscription_id,
-        "type": "subs"
-    }
-    iap.request_purchase(JSON.stringify(params))
-```
+func purchase_with_promotional_offer(product_id: String, offer_id: String):
+    # Generate required parameters
+    var nonce = _generate_uuid()
+    var timestamp = int(Time.get_unix_time_from_system() * 1000)
 
-### Introductory Offers
-
-iOS automatically applies introductory prices (free trials, intro pricing) configured in App Store Connect. No additional code is needed - users will see the introductory offer when eligible.
-
-To check if a subscription has an introductory offer:
-
-```gdscript
-func check_introductory_offer(subscription_id: String):
-    var subscription = _find_subscription(subscription_id)
-    if not subscription:
-        return
-
-    var sub_info = subscription.get("subscriptionInfoIOS", {})
-    var intro_offer = sub_info.get("introductoryOffer", null)
-
-    if intro_offer:
-        var payment_mode = intro_offer.get("paymentMode", "")
-        var display_price = intro_offer.get("displayPrice", "")
-        var period = intro_offer.get("period", {})
-        var period_count = intro_offer.get("periodCount", 1)
-
-        match payment_mode:
-            "free-trial":
-                print("Free trial: %d %s(s)" % [period_count, period.get("unit", "day")])
-            "pay-as-you-go":
-                print("Intro price: %s for %d %s(s)" % [display_price, period_count, period.get("unit", "month")])
-            "pay-up-front":
-                print("Pay upfront: %s for first %d %s(s)" % [display_price, period_count, period.get("unit", "month")])
-    else:
-        print("No introductory offer available")
-```
-
-### Promotional Offers (Optional)
-
-iOS supports promotional offers through the `withOffer` parameter. These are server-to-server offers that require signature generation from your backend.
-
-#### Getting Available Promotional Offers
-
-```gdscript
-func get_promotional_offers(subscription_id: String) -> Array:
-    var subscription = _find_subscription(subscription_id)
-    if not subscription:
-        return []
-
-    var discounts = subscription.get("discountsIOS", [])
-
-    for discount in discounts:
-        print("Offer: ", discount.identifier)
-        print("  Price: ", discount.localizedPrice)
-        print("  Payment Mode: ", discount.paymentMode)
-        print("  Period: ", discount.subscriptionPeriod)
-        print("  Number of Periods: ", discount.numberOfPeriods)
-
-    return discounts
-```
-
-#### Applying Promotional Offers
-
-To apply a promotional offer, you need to generate a signature on your backend server:
-
-```gdscript
-func purchase_with_promotional_offer(subscription_id: String, offer_id: String):
-    # 1. Generate signature on your backend
-    var nonce = generate_uuid()
-    var timestamp = Time.get_unix_time_from_system() * 1000
-
-    var signature_data = await request_signature_from_server(
-        subscription_id,
+    # Request signature from your backend server
+    var signature_data = await _request_signature_from_server(
+        product_id,
         offer_id,
         nonce,
         timestamp
     )
 
-    # 2. Purchase with the promotional offer
-    var params = {
-        "sku": subscription_id,
-        "type": "subs",
-        "withOffer": {
-            "identifier": offer_id,
-            "keyIdentifier": signature_data.key_identifier,
-            "nonce": nonce,
-            "signature": signature_data.signature,
-            "timestamp": timestamp
-        }
-    }
+    if not signature_data:
+        push_error("Failed to get signature from server")
+        return
 
-    iap.request_purchase(JSON.stringify(params))
+    var props = Types.RequestPurchaseProps.new()
+    props.type = Types.ProductQueryType.SUBS
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
 
-func request_signature_from_server(product_id: String, offer_id: String, nonce: String, timestamp: int) -> Dictionary:
+    # iOS setup with promotional offer
+    props.request.apple = Types.RequestPurchaseIosProps.new()
+    props.request.apple.sku = product_id
+    props.request.apple.with_offer = Types.WithOfferIOS.new()
+    props.request.apple.with_offer.identifier = offer_id
+    props.request.apple.with_offer.key_identifier = signature_data.key_identifier
+    props.request.apple.with_offer.nonce = nonce
+    props.request.apple.with_offer.signature = signature_data.signature
+    props.request.apple.with_offer.timestamp = timestamp
+
+    # Android fallback
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
+
+    GodotIapPlugin.request_purchase(props)
+
+func _request_signature_from_server(product_id: String, offer_id: String, nonce: String, timestamp: int) -> Dictionary:
     var http = HTTPRequest.new()
     add_child(http)
 
@@ -301,7 +338,7 @@ func request_signature_from_server(product_id: String, offer_id: String, nonce: 
     })
 
     http.request(
-        "https://your-backend.com/generate-offer-signature",
+        "https://your-backend.com/api/generate-offer-signature",
         ["Content-Type: application/json"],
         HTTPClient.METHOD_POST,
         body
@@ -310,230 +347,311 @@ func request_signature_from_server(product_id: String, offer_id: String, nonce: 
     var result = await http.request_completed
     http.queue_free()
 
-    var response = JSON.parse_string(result[3].get_string_from_utf8())
-    return response
+    if result[1] != 200:
+        return {}
 
-func generate_uuid() -> String:
-    # Generate a UUID v4 compliant string
-    # Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-    # where x is any hex digit and y is one of 8, 9, A, or B
+    return JSON.parse_string(result[3].get_string_from_utf8())
+
+func _generate_uuid() -> String:
     var hex = "0123456789abcdef"
     var uuid = ""
     for i in range(36):
         if i in [8, 13, 18, 23]:
             uuid += "-"
         elif i == 14:
-            uuid += "4"  # Version 4
+            uuid += "4"
         elif i == 19:
-            uuid += hex[8 + (randi() % 4)]  # Variant: 8, 9, a, or b
+            uuid += hex[8 + (randi() % 4)]
         else:
             uuid += hex[randi() % 16]
     return uuid
 ```
 
-## Cross-Platform Implementation
+## Complete Cross-Platform Example
 
 ```gdscript
 extends Node
 
-var iap: GodotIap
-var subscriptions: Array = []
+const Types = preload("res://addons/godot-iap/types.gd")
+
+signal subscription_ready(products: Array)
+signal purchase_completed(product_id: String)
+signal purchase_failed(error: String)
+
+var products: Array = []
+var is_connected := false
 
 func _ready():
-    if Engine.has_singleton("GodotIap"):
-        iap = Engine.get_singleton("GodotIap")
-        iap.subscriptions_fetched.connect(_on_subscriptions_fetched)
-        iap.purchase_updated.connect(_on_purchase_updated)
-        iap.purchase_error.connect(_on_purchase_error)
-        _initialize()
+    _setup_iap()
 
-func _initialize():
-    var result = JSON.parse_string(iap.init_connection())
-    if result.get("success", false):
-        var sub_ids = ["premium_monthly", "premium_yearly"]
-        iap.fetch_subscriptions(JSON.stringify(sub_ids))
+func _setup_iap():
+    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
+    GodotIapPlugin.purchase_error.connect(_on_purchase_error)
+    GodotIapPlugin.products_fetched.connect(_on_products_fetched)
 
-func _on_subscriptions_fetched(fetched_subs: Array):
-    subscriptions = fetched_subs
-    update_subscription_ui()
+    is_connected = GodotIapPlugin.init_connection()
 
-func purchase_subscription(subscription_id: String):
-    var subscription = _find_subscription(subscription_id)
-    if not subscription:
-        show_error("Subscription not found")
+    if is_connected:
+        _fetch_subscriptions()
+
+func _fetch_subscriptions():
+    var request = Types.ProductRequest.new()
+    var sku_list: Array[String] = ["premium_monthly", "premium_yearly"]
+    request.skus = sku_list
+    request.type = Types.ProductQueryType.SUBS
+
+    var fetched = GodotIapPlugin.fetch_products(request)
+    if fetched.size() > 0:
+        products = fetched
+        subscription_ready.emit(products)
+
+func _on_products_fetched(result: Dictionary):
+    if result.has("products"):
+        products = result["products"]
+        subscription_ready.emit(products)
+
+func purchase_subscription(product_id: String, offer_token: String = ""):
+    if not is_connected:
+        purchase_failed.emit("Not connected to store")
         return
 
-    var params = {
-        "sku": subscription_id,
-        "type": "subs"
-    }
+    var product = _find_product(product_id)
+    if not product:
+        purchase_failed.emit("Product not found")
+        return
 
-    # Platform-specific handling
-    if OS.get_name() == "Android":
-        var offers = subscription.get("subscriptionOfferDetailsAndroid", [])
-        if offers.size() == 0:
-            show_error("No subscription offers available")
-            return
+    var props = Types.RequestPurchaseProps.new()
+    props.type = Types.ProductQueryType.SUBS
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
 
-        # Use first offer (or let user choose)
-        params["offerToken"] = offers[0].offerToken
+    # Android
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    var skus: Array[String] = [product_id]
+    props.request.google.skus = skus
 
-    elif OS.get_name() == "iOS":
-        # iOS: Base plan is used by default
-        # Add promotional offer if needed
-        pass
+    # Android requires offer token
+    if offer_token.is_empty() and product.subscription_offer_details_android:
+        for offer in product.subscription_offer_details_android:
+            if offer.offer_token:
+                offer_token = offer.offer_token
+                break
 
-    iap.request_purchase(JSON.stringify(params))
+    if not offer_token.is_empty():
+        props.request.google.offer_token = offer_token
+
+    # iOS
+    props.request.apple = Types.RequestPurchaseIosProps.new()
+    props.request.apple.sku = product_id
+
+    GodotIapPlugin.request_purchase(props)
 
 func _on_purchase_updated(purchase: Dictionary):
-    var product_id = purchase.productId
+    var product_id = purchase.get("productId", "")
     var state = purchase.get("purchaseState", "")
 
-    if state == "purchased":
-        # Verify and grant subscription
-        await verify_and_grant_subscription(purchase)
+    if state == "Purchased" or state == "purchased":
+        # Finish the transaction
+        GodotIapPlugin.finish_transaction_dict(purchase, false)
+        purchase_completed.emit(product_id)
 
 func _on_purchase_error(error: Dictionary):
     var code = error.get("code", "")
-    match code:
-        "USER_CANCELED":
-            pass
-        _:
-            show_error(error.get("message", "Purchase failed"))
+    var message = error.get("message", "Unknown error")
 
-# Helper functions
-func _find_subscription(subscription_id: String) -> Dictionary:
-    for sub in subscriptions:
-        if sub.productId == subscription_id:
-            return sub
-    return {}
+    if code != "USER_CANCELED" and code != "user-cancelled":
+        purchase_failed.emit(message)
 
-func get_subscription_price(subscription_id: String) -> String:
-    var subscription = _find_subscription(subscription_id)
-    if not subscription:
-        return "$9.99"
+func get_subscription_display_info(product_id: String) -> Dictionary:
+    var product = _find_product(product_id)
+    if not product:
+        return {}
 
-    if OS.get_name() == "iOS":
-        return subscription.get("displayPrice", "$9.99")
+    var info = {
+        "id": product.id,
+        "title": product.title,
+        "description": product.description,
+        "price": product.display_price,
+        "offers": []
+    }
 
-    elif OS.get_name() == "Android":
-        var offers = subscription.get("subscriptionOfferDetailsAndroid", [])
-        if offers.size() > 0:
-            var phases = offers[0].get("pricingPhases", {})
-            var phase_list = phases.get("pricingPhaseList", [])
-            if phase_list.size() > 0:
-                return phase_list[0].get("formattedPrice", "$9.99")
+    # Android offers
+    if product.subscription_offer_details_android:
+        for offer in product.subscription_offer_details_android:
+            var offer_info = {
+                "id": offer.offer_id if offer.offer_id else "base_plan",
+                "offer_token": offer.offer_token,
+                "is_base_plan": offer.offer_id == null or offer.offer_id.is_empty()
+            }
 
-    return "$9.99"
+            if offer.pricing_phases and offer.pricing_phases.pricing_phase_list.size() > 0:
+                var phase = offer.pricing_phases.pricing_phase_list[0]
+                offer_info["price"] = phase.formatted_price
+                offer_info["period"] = phase.billing_period
 
-func update_subscription_ui():
-    # Update your UI with subscription info
-    pass
+            info["offers"].append(offer_info)
 
-func verify_and_grant_subscription(purchase: Dictionary):
-    # Verify on server and grant access
-    pass
+    # iOS introductory offer
+    if product.subscription_info_ios and product.subscription_info_ios.introductory_offer:
+        var intro = product.subscription_info_ios.introductory_offer
+        info["introductory_offer"] = {
+            "price": intro.display_price,
+            "payment_mode": intro.payment_mode,
+            "period_count": intro.period_count
+        }
 
-func show_error(message: String):
-    # Show error dialog
-    pass
+    return info
+
+func _find_product(product_id: String):
+    for product in products:
+        if product.id == product_id:
+            return product
+    return null
 ```
 
-## Displaying Offer Information
+## Displaying Offers in UI
 
 ```gdscript
-func display_subscription_options(subscription_id: String):
-    var subscription = _find_subscription(subscription_id)
-    if not subscription:
-        return
+extends Control
 
-    print("=== %s ===" % subscription.get("title", subscription_id))
+const Types = preload("res://addons/godot-iap/types.gd")
 
-    if OS.get_name() == "iOS":
-        # iOS: Show base price and intro offer if available
-        print("Price: ", subscription.get("displayPrice", ""))
+@onready var offer_container = $OfferContainer
+@onready var iap_manager = $IAPManager
 
-        var sub_info = subscription.get("subscriptionInfoIOS", {})
-        var intro = sub_info.get("introductoryOffer", null)
-        if intro:
-            print("Intro Offer: ", _format_ios_intro_offer(intro))
+func _ready():
+    iap_manager.subscription_ready.connect(_on_subscriptions_ready)
 
-        var discounts = subscription.get("discountsIOS", [])
-        for discount in discounts:
-            print("Promo: ", discount.identifier, " - ", discount.localizedPrice)
+func _on_subscriptions_ready(products: Array):
+    for product in products:
+        if product.type == Types.ProductType.SUBS:
+            _create_subscription_card(product)
 
-    elif OS.get_name() == "Android":
-        # Android: Show each offer
-        var offers = subscription.get("subscriptionOfferDetailsAndroid", [])
-        for offer in offers:
-            var offer_name = offer.get("offerId", "Base Plan") if offer.get("offerId") else "Base Plan"
-            var phases = offer.get("pricingPhases", {}).get("pricingPhaseList", [])
-            if phases.size() > 0:
-                print("%s: %s" % [offer_name, phases[0].get("formattedPrice", "")])
+func _create_subscription_card(product):
+    var card = VBoxContainer.new()
 
-func _format_ios_intro_offer(intro: Dictionary) -> String:
-    var mode = intro.get("paymentMode", "")
-    var price = intro.get("displayPrice", "Free")
-    var count = intro.get("periodCount", 1)
-    var unit = intro.get("period", {}).get("unit", "day")
+    # Title
+    var title = Label.new()
+    title.text = product.title
+    card.add_child(title)
 
-    match mode:
-        "free-trial":
-            return "Free for %d %s(s)" % [count, unit]
-        "pay-as-you-go":
-            return "%s for %d %s(s)" % [price, count, unit]
-        "pay-up-front":
-            return "%s upfront for %d %s(s)" % [price, count, unit]
+    # Base price
+    var price = Label.new()
+    price.text = product.display_price
+    card.add_child(price)
+
+    # Show intro offer if available (iOS)
+    if product.subscription_info_ios and product.subscription_info_ios.introductory_offer:
+        var intro = product.subscription_info_ios.introductory_offer
+        var intro_label = Label.new()
+        intro_label.text = _format_intro_offer(intro)
+        intro_label.add_theme_color_override("font_color", Color.GREEN)
+        card.add_child(intro_label)
+
+    # Android offer buttons
+    if product.subscription_offer_details_android:
+        for offer in product.subscription_offer_details_android:
+            var button = Button.new()
+            button.text = _format_android_offer(offer)
+            button.pressed.connect(func():
+                iap_manager.purchase_subscription(product.id, offer.offer_token)
+            )
+            card.add_child(button)
+    else:
+        # iOS: Single purchase button
+        var button = Button.new()
+        button.text = "Subscribe - %s" % product.display_price
+        button.pressed.connect(func():
+            iap_manager.purchase_subscription(product.id)
+        )
+        card.add_child(button)
+
+    offer_container.add_child(card)
+
+func _format_intro_offer(intro) -> String:
+    match intro.payment_mode:
+        Types.PaymentMode.FREE_TRIAL:
+            return "Free trial for %d %s(s)" % [intro.period_count, _unit_string(intro.period.unit)]
+        Types.PaymentMode.PAY_AS_YOU_GO:
+            return "Intro: %s for %d %s(s)" % [intro.display_price, intro.period_count, _unit_string(intro.period.unit)]
+        Types.PaymentMode.PAY_UP_FRONT:
+            return "Pay %s upfront" % intro.display_price
         _:
-            return price
+            return intro.display_price
+
+func _format_android_offer(offer) -> String:
+    var name = "Base Plan" if offer.offer_id == null or offer.offer_id.is_empty() else offer.offer_id
+
+    if offer.pricing_phases and offer.pricing_phases.pricing_phase_list.size() > 0:
+        var phase = offer.pricing_phases.pricing_phase_list[0]
+        return "%s - %s" % [name, phase.formatted_price]
+
+    return name
+
+func _unit_string(unit: Types.SubscriptionPeriodUnit) -> String:
+    match unit:
+        Types.SubscriptionPeriodUnit.DAY: return "day"
+        Types.SubscriptionPeriodUnit.WEEK: return "week"
+        Types.SubscriptionPeriodUnit.MONTH: return "month"
+        Types.SubscriptionPeriodUnit.YEAR: return "year"
+        _: return "period"
 ```
 
 ## Error Handling
 
-### Android Errors
-
 ```gdscript
 func _on_purchase_error(error: Dictionary):
     var code = error.get("code", "")
+    var message = error.get("message", "")
 
-    if code == "PURCHASE_ERROR":
-        # Check if it's an offer-related error
-        var message = error.get("message", "")
-        if "offerToken" in message:
-            print("Subscription offer error - check offer token")
-            # Re-fetch subscriptions and try again
-            refetch_and_retry()
-```
+    match code:
+        "USER_CANCELED", "user-cancelled":
+            # User cancelled, no action needed
+            pass
 
-### iOS Errors
+        "ITEM_ALREADY_OWNED":
+            # User already owns this subscription
+            GodotIapPlugin.restore_purchases()
 
-```gdscript
-func _on_purchase_error(error: Dictionary):
-    var code = error.get("code", "")
+        "PURCHASE_ERROR":
+            if "offerToken" in message:
+                # Android: Offer token issue - re-fetch products
+                _fetch_subscriptions()
+            else:
+                _show_error("Purchase failed: %s" % message)
 
-    if code == "UNKNOWN":
-        var message = error.get("message", "")
-        if "signature" in message or "offer" in message:
-            print("Promotional offer error - check signature")
+        "NETWORK_ERROR", "BILLING_UNAVAILABLE":
+            _show_retry_dialog()
+
+        _:
+            _show_error(message)
+
+func _show_error(message: String):
+    # Display error to user
+    print("Error: %s" % message)
+
+func _show_retry_dialog():
+    # Show retry option to user
+    pass
 ```
 
 ## Best Practices
 
-1. **Always fetch subscriptions first**: Offers are only available after `fetch_subscriptions()`.
+1. **Always use typed API**: Use `Types.ProductRequest`, `Types.RequestPurchaseProps`, etc. instead of raw JSON.
 
-2. **Handle platform differences**: Android requires offers, iOS makes them optional.
+2. **Android requires offer tokens**: Never skip the `offer_token` for Android subscription purchases.
 
-3. **Validate offers exist**: Check that offers exist before attempting purchase.
+3. **Fetch before purchase**: Always call `fetch_products()` before attempting purchases to get current offer data.
 
-4. **User selection**: Allow users to choose between different pricing plans when multiple offers are available.
+4. **Handle async on iOS**: Use the `products_fetched` signal for iOS asynchronous product fetching.
 
-5. **Error recovery**: Provide fallback to base plan if selected offer fails.
+5. **Validate offers exist**: Check that `subscription_offer_details_android` or `subscription_info_ios` exist before accessing.
 
-6. **Cache subscription data**: Avoid fetching subscriptions on every purchase attempt.
+6. **Let users choose**: When multiple offers exist, let users select their preferred pricing plan.
+
+7. **Cache products**: Store fetched products to avoid redundant network calls.
 
 ## See Also
 
 - [Purchases Guide](./purchases) - General purchase implementation
-- [API Reference](../api/) - Detailed method documentation
-- [Android-Specific Methods](../api/methods/android-specific) - Android billing details
-- [iOS-Specific Methods](../api/methods/ios-specific) - iOS StoreKit details
+- [Getting Started](../getting-started/installation) - Setup and initialization
+- [API Reference](../api/) - Complete method documentation

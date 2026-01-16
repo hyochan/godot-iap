@@ -207,7 +207,7 @@ func purchase_premium_year() -> void:
 	_purchase(PRODUCT_PREMIUM_YEAR)
 
 
-func _purchase(product_id: String) -> void:
+func _purchase(product_id: String, offer_token: String = "") -> void:
 	if not store_connected:
 		push_error("[IAPManager] Not connected to store")
 		purchase_failed.emit(product_id, "Not connected")
@@ -227,6 +227,18 @@ func _purchase(product_id: String) -> void:
 	var google_skus: Array[String] = [product_id]
 	props.request.google.skus = google_skus
 
+	# For subscriptions on Android, offer_token is required
+	if is_subscription:
+		if offer_token.is_empty():
+			# Get default offer token from product if not provided
+			offer_token = _get_default_offer_token(product_id)
+
+		if not offer_token.is_empty():
+			props.request.google.offer_token = offer_token
+			print("[IAPManager] Using offer token: %s" % offer_token.substr(0, 20) + "...")
+		else:
+			push_warning("[IAPManager] No offer token available for subscription")
+
 	# Set Apple (iOS) props
 	props.request.apple = Types.RequestPurchaseIosProps.new()
 	props.request.apple.sku = product_id
@@ -235,6 +247,58 @@ func _purchase(product_id: String) -> void:
 	props.type = Types.ProductQueryType.SUBS if is_subscription else Types.ProductQueryType.IN_APP
 
 	var _result = GodotIapPlugin.request_purchase(props)
+
+
+## Get the default offer token for a subscription product (Android)
+func _get_default_offer_token(product_id: String) -> String:
+	if not products.has(product_id):
+		return ""
+
+	var product = products[product_id]
+
+	# Check if product has subscription offer details (Android)
+	if "subscription_offer_details_android" in product and product.subscription_offer_details_android:
+		for offer in product.subscription_offer_details_android:
+			if offer.offer_token:
+				return offer.offer_token
+
+	return ""
+
+
+## Get all available offers for a subscription product
+func get_subscription_offers(product_id: String) -> Array:
+	if not products.has(product_id):
+		return []
+
+	var product = products[product_id]
+	var offers: Array = []
+
+	# Android: Get subscription offer details
+	if "subscription_offer_details_android" in product and product.subscription_offer_details_android:
+		for offer_detail in product.subscription_offer_details_android:
+			var offer_info = {
+				"id": offer_detail.offer_id if offer_detail.offer_id else "base_plan",
+				"base_plan_id": offer_detail.base_plan_id if "base_plan_id" in offer_detail else "",
+				"offer_token": offer_detail.offer_token if "offer_token" in offer_detail else "",
+				"is_base_plan": offer_detail.offer_id == null or offer_detail.offer_id == ""
+			}
+
+			# Get pricing info from pricing phases
+			if "pricing_phases" in offer_detail and offer_detail.pricing_phases:
+				var phases = offer_detail.pricing_phases
+				if "pricing_phase_list" in phases and phases.pricing_phase_list.size() > 0:
+					var first_phase = phases.pricing_phase_list[0]
+					offer_info["display_price"] = first_phase.formatted_price if "formatted_price" in first_phase else ""
+					offer_info["billing_period"] = first_phase.billing_period if "billing_period" in first_phase else ""
+
+			offers.append(offer_info)
+
+	return offers
+
+
+## Purchase a subscription with a specific offer
+func purchase_subscription_with_offer(product_id: String, offer_token: String) -> void:
+	_purchase(product_id, offer_token)
 
 
 func restore_purchases() -> void:

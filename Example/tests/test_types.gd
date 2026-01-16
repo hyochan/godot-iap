@@ -48,6 +48,11 @@ func _run_all_tests() -> void:
 	test_product_query_type_enum()
 	test_purchase_state_enum()
 
+	# New types (v1.3.12)
+	test_discount_offer_type_enum()
+	test_payment_mode_enum()
+	test_subscription_period_unit_enum()
+
 
 # ============================================
 # ProductRequest Tests
@@ -209,7 +214,28 @@ func test_product_query_type_enum() -> void:
 func test_purchase_state_enum() -> void:
 	_assert_equal(Types.PurchaseState.PENDING, 0, "PENDING should be 0")
 	_assert_equal(Types.PurchaseState.PURCHASED, 1, "PURCHASED should be 1")
-	_assert_equal(Types.PurchaseState.FAILED, 2, "FAILED should be 2")
+	_assert_equal(Types.PurchaseState.UNKNOWN, 2, "UNKNOWN should be 2")
+
+
+func test_discount_offer_type_enum() -> void:
+	_assert_equal(Types.DiscountOfferType.INTRODUCTORY, 0, "INTRODUCTORY should be 0")
+	_assert_equal(Types.DiscountOfferType.PROMOTIONAL, 1, "PROMOTIONAL should be 1")
+	_assert_equal(Types.DiscountOfferType.ONE_TIME, 2, "ONE_TIME should be 2")
+
+
+func test_payment_mode_enum() -> void:
+	_assert_equal(Types.PaymentMode.FREE_TRIAL, 0, "FREE_TRIAL should be 0")
+	_assert_equal(Types.PaymentMode.PAY_AS_YOU_GO, 1, "PAY_AS_YOU_GO should be 1")
+	_assert_equal(Types.PaymentMode.PAY_UP_FRONT, 2, "PAY_UP_FRONT should be 2")
+	_assert_equal(Types.PaymentMode.UNKNOWN, 3, "UNKNOWN should be 3")
+
+
+func test_subscription_period_unit_enum() -> void:
+	_assert_equal(Types.SubscriptionPeriodUnit.DAY, 0, "DAY should be 0")
+	_assert_equal(Types.SubscriptionPeriodUnit.WEEK, 1, "WEEK should be 1")
+	_assert_equal(Types.SubscriptionPeriodUnit.MONTH, 2, "MONTH should be 2")
+	_assert_equal(Types.SubscriptionPeriodUnit.YEAR, 3, "YEAR should be 3")
+	_assert_equal(Types.SubscriptionPeriodUnit.UNKNOWN, 4, "UNKNOWN should be 4")
 
 
 # ============================================

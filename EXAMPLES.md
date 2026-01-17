@@ -222,22 +222,13 @@ func fetch_subscriptions():
 
 ```gdscript
 func get_subscription_price(subscription) -> String:
-    # Typed object access
+    # Typed object access - use display_price directly
     if subscription is Object and subscription.display_price:
         return subscription.display_price
 
-    # Dictionary fallback for iOS
-    if OS.get_name() == "iOS":
-        return subscription.get("displayPrice", "$9.99")
-
-    # Android: Extract from subscription offers
-    elif OS.get_name() == "Android":
-        var offers = subscription.get("subscriptionOfferDetailsAndroid", [])
-        if offers.size() > 0:
-            var phases = offers[0].get("pricingPhases", {})
-            var phase_list = phases.get("pricingPhaseList", [])
-            if phase_list.size() > 0:
-                return phase_list[0].get("formattedPrice", "$9.99")
+    # Cross-platform: use subscription_offers field
+    if subscription.subscription_offers and subscription.subscription_offers.size() > 0:
+        return subscription.subscription_offers[0].display_price
 
     return "$9.99"
 ```
@@ -259,17 +250,18 @@ func purchase_subscription(subscription_id: String):
     props.request = Types.RequestPurchasePropsByPlatforms.new()
     props.type = Types.ProductQueryType.SUBS
 
-    # Android configuration with offer token (required)
+    # Android configuration with offer token (required for subscriptions)
     props.request.google = Types.RequestPurchaseAndroidProps.new()
     props.request.google.skus = [subscription_id]
 
-    if OS.get_name() == "Android":
-        var offers = subscription.get("subscriptionOfferDetailsAndroid", [])
-        if offers.size() > 0:
-            var sub_offers: Array[Types.SubscriptionOfferAndroid] = []
-            var offer = Types.SubscriptionOfferAndroid.new()
+    # Use cross-platform subscription_offers field
+    if subscription.subscription_offers and subscription.subscription_offers.size() > 0:
+        var first_offer = subscription.subscription_offers[0]
+        if first_offer.offer_token_android:
+            var sub_offers: Array[Types.AndroidSubscriptionOfferInput] = []
+            var offer = Types.AndroidSubscriptionOfferInput.new()
             offer.sku = subscription_id
-            offer.offer_token = offers[0].get("offerToken", "")
+            offer.offer_token = first_offer.offer_token_android
             sub_offers.append(offer)
             props.request.google.subscription_offers = sub_offers
 
@@ -619,6 +611,9 @@ func _process_restore(purchase):
     # Grant content
     _grant_purchase(product_id)
     print("Restored: ", product_id)
+
+func _is_subscription(product_id: String) -> bool:
+    return product_id in SUBSCRIPTION_IDS.values()
 ```
 
 ### 5.2 Restore with UI Feedback

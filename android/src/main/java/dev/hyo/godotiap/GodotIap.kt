@@ -232,7 +232,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                             purchaseTokenAndroid = params.purchaseToken,
                             replacementModeAndroid = params.replacementMode,
                             skus = params.skus,
-                            subscriptionOffers = params.subscriptionOffers.takeIf { it.isNotEmpty() }
+                            subscriptionOffers = params.subscriptionOffers.takeIf { it.isNotEmpty() },
+                            subscriptionProductReplacementParams = params.subscriptionProductReplacementParams
                         )
                         RequestPurchaseProps(
                             request = RequestPurchaseProps.Request.Subscription(

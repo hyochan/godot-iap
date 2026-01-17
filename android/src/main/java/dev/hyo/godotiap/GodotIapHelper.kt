@@ -2,6 +2,8 @@ package dev.hyo.godotiap
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.ProductQueryType
+import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
+import dev.hyo.openiap.SubscriptionReplacementModeAndroid
 import org.json.JSONObject
 import java.util.Locale
 
@@ -85,6 +87,22 @@ internal object GodotIapHelper {
             else -> null
         }
 
+        // Parse subscriptionProductReplacementParams (8.1.0+)
+        val subscriptionProductReplacementParams = if (json.has("subscriptionProductReplacementParams")) {
+            val paramsObj = json.optJSONObject("subscriptionProductReplacementParams")
+            if (paramsObj != null) {
+                val oldProductId = paramsObj.optString("oldProductId", null)
+                val mode = paramsObj.optString("replacementMode", null)
+                val parsedMode = parseSubscriptionReplacementMode(mode)
+                if (oldProductId != null && parsedMode != null) {
+                    SubscriptionProductReplacementParamsAndroid(
+                        oldProductId = oldProductId,
+                        replacementMode = parsedMode
+                    )
+                } else null
+            } else null
+        } else null
+
         // Parse offer token array
         val offerTokenArr = mutableListOf<String>()
         val offerTokenArray = json.optJSONArray("offerTokenArr")
@@ -134,8 +152,25 @@ internal object GodotIapHelper {
             offerTokenArr = offerTokenArr,
             subscriptionOffers = subscriptionOffers,
             purchaseToken = purchaseToken,
-            replacementMode = replacementMode
+            replacementMode = replacementMode,
+            subscriptionProductReplacementParams = subscriptionProductReplacementParams
         )
+    }
+
+    /**
+     * Parse subscription replacement mode from string.
+     * Maps string values to SubscriptionReplacementModeAndroid enum.
+     */
+    private fun parseSubscriptionReplacementMode(mode: String?): SubscriptionReplacementModeAndroid? {
+        return when (mode?.lowercase(Locale.US)?.replace("-", "_")) {
+            "unknown_replacement_mode" -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
+            "with_time_proration" -> SubscriptionReplacementModeAndroid.WithTimeProration
+            "charge_prorated_price" -> SubscriptionReplacementModeAndroid.ChargeProratedPrice
+            "without_proration" -> SubscriptionReplacementModeAndroid.WithoutProration
+            "charge_full_price" -> SubscriptionReplacementModeAndroid.ChargeFullPrice
+            "deferred" -> SubscriptionReplacementModeAndroid.Deferred
+            else -> null
+        }
     }
 
     /**
@@ -151,6 +186,7 @@ internal object GodotIapHelper {
         val offerTokenArr: List<String>,
         val subscriptionOffers: List<AndroidSubscriptionOfferInput>,
         val purchaseToken: String?,
-        val replacementMode: Int?
+        val replacementMode: Int?,
+        val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?
     )
 }

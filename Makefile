@@ -30,7 +30,7 @@ YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
 
-.PHONY: all setup ios ios-build android clean help run-android run-ios export-ios export-android test-setup test-android test-ios export-test-android export-test-ios test
+.PHONY: all setup ios ios-build macos macos-build android clean help run-android run-ios export-ios export-android test-setup test-android test-ios export-test-android export-test-ios test
 
 help:
 	@echo "GodotIap Build System"
@@ -38,6 +38,7 @@ help:
 	@echo "Usage:"
 	@echo "  make setup         - Download godot-lib.aar for Android development"
 	@echo "  make ios           - Build iOS plugin (uses xcodebuild)"
+	@echo "  make macos         - Build macOS plugin (uses xcodebuild)"
 	@echo "  make android       - Build Android plugin"
 	@echo "  make all           - Build everything"
 	@echo "  make clean         - Clean all build artifacts"
@@ -99,6 +100,22 @@ ios-build:
 	@cp -R $(IOS_GDEXT_DIR)/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/SwiftGodotRuntime.framework $(BIN_DIR)/ios/
 	@echo "$(GREEN)✓ Frameworks copied$(NC)"
 
+# Build macOS plugin (automated with xcodebuild)
+macos: setup macos-build
+	@echo "$(GREEN)✓ macOS plugin built$(NC)"
+
+# Build macOS frameworks using xcodebuild
+macos-build:
+	@echo "$(GREEN)Building macOS frameworks...$(NC)"
+	@cd $(IOS_GDEXT_DIR) && xcodebuild -scheme GodotIap -sdk macosx -destination 'platform=macOS' -configuration Release -derivedDataPath .build-xcode-macos build
+	@echo "$(GREEN)Copying frameworks to addon...$(NC)"
+	@rm -rf $(BIN_DIR)/macos/*.framework
+	@cp -R $(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/GodotIap.framework $(BIN_DIR)/macos/
+	@cp -R $(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/SwiftGodotRuntime.framework $(BIN_DIR)/macos/
+	@echo "$(GREEN)Fixing macOS framework rpaths...$(NC)"
+	@install_name_tool -add_rpath @loader_path/../../../ $(BIN_DIR)/macos/GodotIap.framework/Versions/A/GodotIap 2>/dev/null || true
+	@echo "$(GREEN)✓ macOS frameworks copied$(NC)"
+
 # Build Android plugin
 android: setup gradle-wrapper
 	@echo "$(GREEN)Building Android plugin...$(NC)"
@@ -118,7 +135,7 @@ gradle-wrapper:
 	fi
 
 # Build everything
-all: android ios
+all: android ios macos
 	@echo ""
 	@echo "$(GREEN)All builds complete!$(NC)"
 

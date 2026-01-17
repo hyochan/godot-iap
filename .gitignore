@@ -35,6 +35,7 @@ android/libs/
 # iOS GDExtension - Build artifacts
 ios-gdextension/.build/
 ios-gdextension/.build-xcode/
+ios-gdextension/.build-xcode-macos/
 ios-gdextension/.swiftpm/
 ios-gdextension/Package.resolved
 

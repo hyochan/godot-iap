@@ -47,6 +47,6 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 
 	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
 		return PackedStringArray([
-			"io.github.hyochan.openiap:openiap-google:1.3.21",
+			"io.github.hyochan.openiap:openiap-google:1.3.23",
 			"org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
 		])

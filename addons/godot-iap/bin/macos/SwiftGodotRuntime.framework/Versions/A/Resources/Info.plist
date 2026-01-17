@@ -9,7 +9,7 @@
 	<key>CFBundleExecutable</key>
 	<string>SwiftGodotRuntime</string>
 	<key>CFBundleIdentifier</key>
-	<string>swiftgodot.SwiftGodotRuntime</string>
+	<string>dev.hyo.godot-iap.GodotIap</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>

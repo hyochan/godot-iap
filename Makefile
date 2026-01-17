@@ -107,7 +107,7 @@ macos: setup macos-build
 # Build macOS frameworks using xcodebuild (universal binary: arm64 + x86_64)
 macos-build:
 	@echo "$(GREEN)Building macOS frameworks (universal binary)...$(NC)"
-	@cd $(IOS_GDEXT_DIR) && xcodebuild -scheme GodotIap -sdk macosx -destination 'platform=macOS' ARCHS="arm64 x86_64" -configuration Release -derivedDataPath .build-xcode-macos build
+	@cd $(IOS_GDEXT_DIR) && xcodebuild -scheme GodotIap -sdk macosx -destination 'platform=macOS' ARCHS="arm64 x86_64" PRODUCT_BUNDLE_IDENTIFIER="dev.hyo.godot-iap.GodotIap" -configuration Release -derivedDataPath .build-xcode-macos build
 	@echo "$(GREEN)Copying frameworks to addon...$(NC)"
 	@rm -rf $(BIN_DIR)/macos/*.framework
 	@cp -R $(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/GodotIap.framework $(BIN_DIR)/macos/

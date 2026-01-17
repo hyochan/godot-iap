@@ -9,7 +9,7 @@
 	<key>CFBundleExecutable</key>
 	<string>GodotIap</string>
 	<key>CFBundleIdentifier</key>
-	<string>ios-gdextension.GodotIap</string>
+	<string>dev.hyo.godot-iap.GodotIap</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>

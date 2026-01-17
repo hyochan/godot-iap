@@ -83,21 +83,27 @@ jobs:
           cp -R addons/godot-iap/bin/ios/GodotIap.framework dist/addons/godot-iap/bin/ios/
           cp -R addons/godot-iap/bin/ios/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/ios/
 
-          # Create GDExtension config for iOS
-          cat > dist/addons/godot-iap/bin/ios/godot_iap.gdextension << 'EOF'
+          # Copy macOS frameworks
+          mkdir -p dist/addons/godot-iap/bin/macos
+          cp -R addons/godot-iap/bin/macos/GodotIap.framework dist/addons/godot-iap/bin/macos/
+          cp -R addons/godot-iap/bin/macos/SwiftGodotRuntime.framework dist/addons/godot-iap/bin/macos/
+
+          # Create GDExtension config (platform-neutral location)
+          cat > dist/addons/godot-iap/bin/godot_iap.gdextension << 'EOF'
           [configuration]
           entry_symbol = "godot_iap_entry_point"
           compatibility_minimum = "4.3"
-          supported_platforms = ["ios"]
+          supported_platforms = ["ios", "macos"]
 
           [libraries]
-          ios.arm64 = "GodotIap.framework/GodotIap"
-          macos = ""
-          windows = ""
-          linux = ""
+          ios.arm64 = "ios/GodotIap.framework/GodotIap"
+          macos.arm64 = "macos/GodotIap.framework/GodotIap"
+          macos.x86_64 = "macos/GodotIap.framework/GodotIap"
 
           [dependencies]
-          ios.arm64 = {"SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
+          ios.arm64 = {"ios/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
+          macos.arm64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
+          macos.x86_64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
           EOF
 
       - name: Create release zip

@@ -36,15 +36,19 @@ Godot export doesn't embed frameworks automatically. The `scripts/fix_ios_embed.
 ## GDExtension Config
 
 ```ini
-; Example/addons/godot-iap/bin/ios/godot_iap.gdextension
+; Example/addons/godot-iap/bin/godot_iap.gdextension
 [configuration]
 entry_symbol = "godot_iap_entry_point"
 compatibility_minimum = "4.3"
-supported_platforms = ["ios"]
+supported_platforms = ["ios", "macos"]
 
 [libraries]
-ios.arm64 = "GodotIap.framework/GodotIap"
+ios.arm64 = "ios/GodotIap.framework/GodotIap"
+macos.arm64 = "macos/GodotIap.framework/GodotIap"
+macos.x86_64 = "macos/GodotIap.framework/GodotIap"
 
 [dependencies]
-ios.arm64 = {"SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
+ios.arm64 = {"ios/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
+macos.arm64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
+macos.x86_64 = {"macos/SwiftGodotRuntime.framework/SwiftGodotRuntime": ""}
 ```

@@ -33,12 +33,8 @@ All notable changes to godot-iap will be documented in this file.
 - **RequestActiveSubscriptionsAndroidProps** new field:
   - `include_suspended_android`: Include suspended subscriptions in the result (Android 8.1+)
 
-- **ProductIOS/SubscriptionIOS** new field:
+- **ProductAndroid** new field:
   - `product_status_android`: Product-level status code indicating fetch result (Android 8.0+)
-
-### Changed
-
-- **RequestPurchaseIosProps**: Subscription-only fields (`winBackOffer`, `promotionalOfferJWS`, `introductoryOfferEligibility`) moved to `RequestSubscriptionIosProps`
 
 ### OpenIAP Version Updates
 

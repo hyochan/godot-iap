@@ -50,16 +50,35 @@ jobs:
           path: android/build/outputs/aar/*.aar
           retention-days: 7
 
-  # iOS Framework Check (pre-built via pre-commit hook)
-  ios-check:
-    name: iOS Framework Check
-    runs-on: ubuntu-latest
+  # iOS Build Test
+  ios-build:
+    name: iOS Build
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify iOS frameworks exist
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Clone SwiftGodot
+        run: |
+          git clone --depth 1 --branch 0.53.0 https://github.com/migueldeicaza/SwiftGodot.git
+
+      - name: Sync OpenIAP versions
+        run: |
+          chmod +x scripts/sync-versions.sh
+          ./scripts/sync-versions.sh
+
+      - name: Build iOS GDExtension (macOS)
+        run: |
+          cd ios-gdextension
+          swift build -c release 2>&1 | tail -50
+
+      - name: Verify pre-built iOS frameworks
         run: |
           echo "Checking pre-built iOS frameworks..."
 
@@ -76,7 +95,7 @@ jobs:
             exit 1
           fi
 
-          echo "✓ iOS frameworks verified"
+          echo "iOS frameworks verified"
 
           # Show framework info
           echo ""
@@ -186,14 +205,14 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [android-build, ios-check, gdscript-check, gdscript-test, docs-build]
+    needs: [android-build, ios-build, gdscript-check, gdscript-test, docs-build]
     if: always()
 
     steps:
       - name: Check all jobs passed
         run: |
           if [ "${{ needs.android-build.result }}" != "success" ] || \
-             [ "${{ needs.ios-check.result }}" != "success" ] || \
+             [ "${{ needs.ios-build.result }}" != "success" ] || \
              [ "${{ needs.gdscript-check.result }}" != "success" ] || \
              [ "${{ needs.gdscript-test.result }}" != "success" ] || \
              [ "${{ needs.docs-build.result }}" != "success" ]; then

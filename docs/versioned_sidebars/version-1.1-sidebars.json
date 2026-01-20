@@ -1,0 +1,69 @@
+{
+  "tutorialSidebar": [
+    {
+      "type": "doc",
+      "id": "index",
+      "label": "Introduction"
+    },
+    {
+      "type": "category",
+      "label": "Getting Started",
+      "items": [
+        "getting-started/installation",
+        "getting-started/setup-ios",
+        "getting-started/setup-android"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Guides",
+      "items": [
+        "guides/lifecycle",
+        "guides/purchases",
+        "guides/subscription-offers",
+        "guides/error-handling",
+        "guides/troubleshooting"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "API Reference",
+      "link": {
+        "type": "doc",
+        "id": "api/index"
+      },
+      "items": [
+        {
+          "type": "category",
+          "label": "Methods",
+          "link": {"type": "doc", "id": "api/methods/core-methods"},
+          "items": [
+            "api/methods/unified-apis",
+            "api/methods/listeners",
+            "api/methods/ios-specific",
+            "api/methods/android-specific"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Examples",
+      "items": [
+        "examples/purchase-flow",
+        "examples/subscription-flow",
+        "examples/available-purchases"
+      ]
+    },
+    {
+      "type": "doc",
+      "id": "guides/ai-assistants",
+      "label": "AI Assistants"
+    },
+    {
+      "type": "doc",
+      "id": "sponsors",
+      "label": "Sponsors"
+    }
+  ]
+}

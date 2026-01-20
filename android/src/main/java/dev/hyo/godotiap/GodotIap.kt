@@ -227,10 +227,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     ProductQueryType.Subs -> {
                         val android = RequestSubscriptionAndroidProps(
                             isOfferPersonalized = params.isOfferPersonalized,
-                            obfuscatedAccountIdAndroid = params.obfuscatedAccountId,
-                            obfuscatedProfileIdAndroid = params.obfuscatedProfileId,
-                            purchaseTokenAndroid = params.purchaseToken,
-                            replacementModeAndroid = params.replacementMode,
+                            obfuscatedAccountId = params.obfuscatedAccountId,
+                            obfuscatedProfileId = params.obfuscatedProfileId,
+                            purchaseToken = params.purchaseToken,
+                            replacementMode = params.replacementMode,
                             skus = params.skus,
                             subscriptionOffers = params.subscriptionOffers.takeIf { it.isNotEmpty() },
                             subscriptionProductReplacementParams = params.subscriptionProductReplacementParams

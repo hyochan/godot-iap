@@ -53,6 +53,11 @@ func _run_all_tests() -> void:
 	test_payment_mode_enum()
 	test_subscription_period_unit_enum()
 
+	# Simplified field names (v1.3.15)
+	test_request_purchase_android_props_offer_token()
+	test_request_purchase_android_props_to_dict()
+	test_request_subscription_android_props_simplified_names()
+
 
 # ============================================
 # ProductRequest Tests
@@ -236,6 +241,53 @@ func test_subscription_period_unit_enum() -> void:
 	_assert_equal(Types.SubscriptionPeriodUnit.MONTH, 2, "MONTH should be 2")
 	_assert_equal(Types.SubscriptionPeriodUnit.YEAR, 3, "YEAR should be 3")
 	_assert_equal(Types.SubscriptionPeriodUnit.UNKNOWN, 4, "UNKNOWN should be 4")
+
+
+# ============================================
+# RequestPurchaseAndroidProps Tests (v1.3.15+)
+# ============================================
+
+func test_request_purchase_android_props_offer_token() -> void:
+	# Test that RequestPurchaseAndroidProps has offer_token field (no Android suffix)
+	var request = Types.RequestPurchaseAndroidProps.new()
+	var skus: Array[String] = ["product_id"]
+	request.skus = skus
+	request.offer_token = "test_offer_token"
+	request.is_offer_personalized = true
+	request.obfuscated_account_id = "user_123"
+	request.obfuscated_profile_id = "profile_456"
+
+	_assert_equal(request.skus[0], "product_id", "RequestPurchaseAndroidProps should have sku")
+	_assert_equal(request.offer_token, "test_offer_token", "RequestPurchaseAndroidProps should have offer_token (no Android suffix)")
+	_assert_equal(request.is_offer_personalized, true, "RequestPurchaseAndroidProps should have is_offer_personalized (no Android suffix)")
+	_assert_equal(request.obfuscated_account_id, "user_123", "RequestPurchaseAndroidProps should have obfuscated_account_id (no Android suffix)")
+	_assert_equal(request.obfuscated_profile_id, "profile_456", "RequestPurchaseAndroidProps should have obfuscated_profile_id (no Android suffix)")
+
+
+func test_request_purchase_android_props_to_dict() -> void:
+	var request = Types.RequestPurchaseAndroidProps.new()
+	var skus: Array[String] = ["product_id"]
+	request.skus = skus
+	request.offer_token = "discount_token"
+
+	var dict = request.to_dict()
+
+	_assert_equal(dict["skus"][0], "product_id", "to_dict should preserve skus")
+	_assert_equal(dict["offerToken"], "discount_token", "to_dict should serialize offer_token as offerToken")
+
+
+func test_request_subscription_android_props_simplified_names() -> void:
+	# Test that RequestSubscriptionAndroidProps uses simplified field names (no Android suffix)
+	var request = Types.RequestSubscriptionAndroidProps.new()
+	var skus: Array[String] = ["premium_monthly"]
+	request.skus = skus
+	request.purchase_token = "old_purchase_token"
+	request.replacement_mode = 2  # CHARGE_PRORATED_PRICE
+	request.obfuscated_account_id = "user_123"
+
+	_assert_equal(request.purchase_token, "old_purchase_token", "RequestSubscriptionAndroidProps should have purchase_token (no Android suffix)")
+	_assert_equal(request.replacement_mode, 2, "RequestSubscriptionAndroidProps should have replacement_mode (no Android suffix)")
+	_assert_equal(request.obfuscated_account_id, "user_123", "RequestSubscriptionAndroidProps should have obfuscated_account_id (no Android suffix)")
 
 
 # ============================================

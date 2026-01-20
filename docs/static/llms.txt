@@ -4,7 +4,7 @@
 
 ## Quick Reference
 
-- **Version**: 1.3.14
+- **Version**: 1.3.15
 - **Godot Compatibility**: 4.3+
 - **iOS Requirements**: iOS 15.0+ (StoreKit 2)
 - **Android Requirements**: API 24+ (Google Play Billing v8+)
@@ -126,8 +126,19 @@ class RequestPurchasePropsByPlatforms:
 
 class RequestPurchaseAndroidProps:
     var skus: Array[String]
-    var offer_token: String
+    var offer_token: String               # Discount offer token (Android 7.0+)
     var is_offer_personalized: bool
+    var obfuscated_account_id: String     # Optional user account ID
+    var obfuscated_profile_id: String     # Optional user profile ID
+
+class RequestSubscriptionAndroidProps:
+    var skus: Array[String]
+    var purchase_token: String            # For upgrades/downgrades
+    var replacement_mode: int             # Proration mode for subscription changes
+    var obfuscated_account_id: String
+    var obfuscated_profile_id: String
+    var is_offer_personalized: bool
+    var subscription_offers: Array[Types.AndroidSubscriptionOfferInput]
 
 class RequestPurchaseIOSProps:
     var sku: String
@@ -232,6 +243,27 @@ func purchase(product_id: String, is_subscription: bool = false):
     # iOS
     props.request.apple = Types.RequestPurchaseIOSProps.new()
     props.request.apple.sku = product_id
+
+    iap.request_purchase(props)
+```
+
+### Purchasing with Discount Offer (Android 7.0+)
+
+```gdscript
+func purchase_with_discount(product: Types.ProductAndroid):
+    if product.discount_offers.size() == 0:
+        return  # No discount offers available
+
+    var offer = product.discount_offers[0]
+
+    var props = Types.RequestPurchaseProps.new()
+    props.type = Types.ProductQueryType.IN_APP
+    props.request = Types.RequestPurchasePropsByPlatforms.new()
+
+    props.request.google = Types.RequestPurchaseAndroidProps.new()
+    props.request.google.skus = [product.id]
+    # Pass offer_token from the discount offer (no Android suffix in input)
+    props.request.google.offer_token = offer.offer_token_android
 
     iap.request_purchase(props)
 ```

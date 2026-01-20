@@ -301,6 +301,41 @@ func purchase_subscription_with_offer(product_id: String, offer_token: String) -
 	_purchase(product_id, offer_token)
 
 
+## Purchase a one-time product with a discount offer (Android 7.0+)
+## Example: Purchase with a promotional discount
+func purchase_with_discount(product_id: String) -> void:
+	if not products.has(product_id):
+		push_error("[IAPManager] Product not found: %s" % product_id)
+		purchase_failed.emit(product_id, "Product not found")
+		return
+
+	var product = products[product_id]
+
+	# Check for discount offers (one-time product offers, Android 7.0+)
+	if "discount_offers" in product and product.discount_offers.size() > 0:
+		var discount_offer = product.discount_offers[0]
+		print("[IAPManager] Found discount offer: %s%% off" % discount_offer.percentage_discount_android)
+
+		# Create purchase request with discount offer token
+		var props = Types.RequestPurchaseProps.new()
+		props.request = Types.RequestPurchasePropsByPlatforms.new()
+		props.type = Types.ProductQueryType.IN_APP
+
+		props.request.google = Types.RequestPurchaseAndroidProps.new()
+		var google_skus: Array[String] = [product_id]
+		props.request.google.skus = google_skus
+		# Pass the offer token from the discount offer (note: response field has _android suffix)
+		props.request.google.offer_token = discount_offer.offer_token_android
+
+		props.request.apple = Types.RequestPurchaseIosProps.new()
+		props.request.apple.sku = product_id
+
+		var _result = GodotIapPlugin.request_purchase(props)
+	else:
+		# No discount available, purchase at regular price
+		_purchase(product_id)
+
+
 func restore_purchases() -> void:
 	## Restore previous purchases
 	print("[IAPManager] Restoring purchases...")

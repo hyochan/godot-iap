@@ -66,7 +66,7 @@ jobs:
 
       - name: Clone SwiftGodot
         run: |
-          git clone --depth 1 --branch 0.53.0 https://github.com/migueldeicaza/SwiftGodot.git
+          git clone --depth 1 --branch v0.74.0 https://github.com/migueldeicaza/SwiftGodot.git
 
       - name: Sync OpenIAP versions
         run: |

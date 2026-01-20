@@ -245,8 +245,9 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     else -> {
                         val android = RequestPurchaseAndroidProps(
                             isOfferPersonalized = params.isOfferPersonalized,
-                            obfuscatedAccountIdAndroid = params.obfuscatedAccountId,
-                            obfuscatedProfileIdAndroid = params.obfuscatedProfileId,
+                            obfuscatedAccountId = params.obfuscatedAccountId,
+                            obfuscatedProfileId = params.obfuscatedProfileId,
+                            offerToken = params.offerTokenArr.firstOrNull(),
                             skus = params.skus
                         )
                         RequestPurchaseProps(

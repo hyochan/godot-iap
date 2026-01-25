@@ -316,9 +316,11 @@ func test_external_purchase_custom_link_notice_result_ios() -> void:
 	result.error = ""
 
 	_assert_equal(result.continued, true, "ExternalPurchaseCustomLinkNoticeResultIOS continued should be true")
+	_assert_equal(result.error, "", "ExternalPurchaseCustomLinkNoticeResultIOS error should be empty")
 
 	var dict = result.to_dict()
 	_assert_equal(dict["continued"], true, "to_dict continued should match")
+	_assert_equal(dict["error"], "", "to_dict error should match")
 
 	# Test from_dict
 	var from_dict_data = {"continued": false, "error": "User cancelled"}
@@ -334,14 +336,23 @@ func test_external_purchase_custom_link_token_result_ios() -> void:
 	result.error = ""
 
 	_assert_equal(result.token, "abc123token", "ExternalPurchaseCustomLinkTokenResultIOS token should match")
+	_assert_equal(result.error, "", "ExternalPurchaseCustomLinkTokenResultIOS error should be empty")
 
 	var dict = result.to_dict()
 	_assert_equal(dict["token"], "abc123token", "to_dict token should match")
+	_assert_equal(dict["error"], "", "to_dict error should match")
 
 	# Test from_dict
 	var from_dict_data = {"token": "parsed_token", "error": null}
 	var parsed = Types.ExternalPurchaseCustomLinkTokenResultIOS.from_dict(from_dict_data)
 	_assert_equal(parsed.token, "parsed_token", "from_dict token should match")
+	_assert_equal(parsed.error, null, "from_dict error should be null")
+
+	# Test from_dict with error
+	var error_data = {"token": null, "error": "Not eligible"}
+	var error_result = Types.ExternalPurchaseCustomLinkTokenResultIOS.from_dict(error_data)
+	_assert_equal(error_result.token, null, "from_dict token should be null")
+	_assert_equal(error_result.error, "Not eligible", "from_dict error should match")
 
 
 # ============================================

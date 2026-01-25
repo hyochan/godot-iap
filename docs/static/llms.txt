@@ -4,7 +4,7 @@
 
 ## Quick Reference
 
-- **Version**: 1.3.15
+- **Version**: 1.2.3
 - **Godot Compatibility**: 4.3+
 - **iOS Requirements**: iOS 15.0+ (StoreKit 2)
 - **Android Requirements**: API 24+ (Google Play Billing v8+)
@@ -103,6 +103,10 @@ enum SubscriptionPeriodUnit { DAY = 0, WEEK = 1, MONTH = 2, YEAR = 3, UNKNOWN = 
 enum ProductStatusAndroid { OK = 0, NOT_FOUND = 1, NO_OFFERS_AVAILABLE = 2, UNKNOWN = 3 }
 enum SubResponseCodeAndroid { NO_APPLICABLE_SUB_RESPONSE_CODE = 0, PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS = 1, USER_INELIGIBLE = 2 }
 enum SubscriptionOfferTypeIOS { INTRODUCTORY = 0, PROMOTIONAL = 1, WIN_BACK = 2 }  # WIN_BACK added for iOS 18+
+
+# New in v1.3.16 - ExternalPurchaseCustomLink types (iOS 18.1+)
+enum ExternalPurchaseCustomLinkNoticeTypeIOS { BROWSER = 0 }
+enum ExternalPurchaseCustomLinkTokenTypeIOS { ACQUISITION = 0, SERVICES = 1 }
 ```
 
 ### ProductRequest
@@ -201,6 +205,15 @@ class SubscriptionOffer:
 class SubscriptionPeriod:
     var unit: SubscriptionPeriodUnit     # DAY, WEEK, MONTH, YEAR
     var value: int                       # Number of units
+
+# ExternalPurchaseCustomLink result types (iOS 18.1+, v1.3.16+)
+class ExternalPurchaseCustomLinkNoticeResultIOS:
+    var continued: bool                  # True if user chose to continue
+    var error: String                    # Error message if presentation failed
+
+class ExternalPurchaseCustomLinkTokenResultIOS:
+    var token: String                    # The external purchase token
+    var error: String                    # Error message if retrieval failed
 ```
 
 ## Signals

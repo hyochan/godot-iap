@@ -52,6 +52,12 @@ func _run_all_tests() -> void:
 	_test_subscription_offer()
 	_test_subscription_period()
 
+	# ExternalPurchaseCustomLink types (v1.3.16)
+	_test_external_purchase_custom_link_notice_type_ios()
+	_test_external_purchase_custom_link_token_type_ios()
+	_test_external_purchase_custom_link_notice_result_ios()
+	_test_external_purchase_custom_link_token_result_ios()
+
 
 # ============================================
 # ProductRequest Tests
@@ -348,6 +354,84 @@ func _test_subscription_period() -> void:
 	_assert_equal(Types.SubscriptionPeriodUnit.WEEK, 1, "SubscriptionPeriodUnit.WEEK should be 1")
 	_assert_equal(Types.SubscriptionPeriodUnit.MONTH, 2, "SubscriptionPeriodUnit.MONTH should be 2")
 	_assert_equal(Types.SubscriptionPeriodUnit.YEAR, 3, "SubscriptionPeriodUnit.YEAR should be 3")
+
+
+# ============================================
+# ExternalPurchaseCustomLink Tests (v1.3.16)
+# ============================================
+
+func _test_external_purchase_custom_link_notice_type_ios() -> void:
+	print("Testing ExternalPurchaseCustomLinkNoticeTypeIOS...")
+
+	# Test enum value
+	_assert_equal(Types.ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER, 0, "ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER should be 0")
+
+
+func _test_external_purchase_custom_link_token_type_ios() -> void:
+	print("Testing ExternalPurchaseCustomLinkTokenTypeIOS...")
+
+	# Test enum values
+	_assert_equal(Types.ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION, 0, "ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION should be 0")
+	_assert_equal(Types.ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES, 1, "ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES should be 1")
+
+
+func _test_external_purchase_custom_link_notice_result_ios() -> void:
+	print("Testing ExternalPurchaseCustomLinkNoticeResultIOS...")
+
+	# Test creation
+	var result = Types.ExternalPurchaseCustomLinkNoticeResultIOS.new()
+	result.continued = true
+	result.error = ""
+
+	_assert_equal(result.continued, true, "ExternalPurchaseCustomLinkNoticeResultIOS continued should be true")
+	_assert_equal(result.error, "", "ExternalPurchaseCustomLinkNoticeResultIOS error should be empty")
+
+	# Test to_dict
+	var dict = result.to_dict()
+	_assert_equal(dict["continued"], true, "to_dict continued should match")
+	_assert_equal(dict["error"], "", "to_dict error should match")
+
+	# Test from_dict
+	var from_dict_data = {
+		"continued": false,
+		"error": "User cancelled"
+	}
+	var parsed = Types.ExternalPurchaseCustomLinkNoticeResultIOS.from_dict(from_dict_data)
+	_assert_equal(parsed.continued, false, "from_dict continued should be false")
+	_assert_equal(parsed.error, "User cancelled", "from_dict error should match")
+
+
+func _test_external_purchase_custom_link_token_result_ios() -> void:
+	print("Testing ExternalPurchaseCustomLinkTokenResultIOS...")
+
+	# Test creation
+	var result = Types.ExternalPurchaseCustomLinkTokenResultIOS.new()
+	result.token = "abc123token"
+	result.error = ""
+
+	_assert_equal(result.token, "abc123token", "ExternalPurchaseCustomLinkTokenResultIOS token should match")
+	_assert_equal(result.error, "", "ExternalPurchaseCustomLinkTokenResultIOS error should be empty")
+
+	# Test to_dict
+	var dict = result.to_dict()
+	_assert_equal(dict["token"], "abc123token", "to_dict token should match")
+	_assert_equal(dict["error"], "", "to_dict error should match")
+
+	# Test from_dict
+	var from_dict_data = {
+		"token": "parsed_token_xyz",
+		"error": null
+	}
+	var parsed = Types.ExternalPurchaseCustomLinkTokenResultIOS.from_dict(from_dict_data)
+	_assert_equal(parsed.token, "parsed_token_xyz", "from_dict token should match")
+
+	# Test from_dict with error
+	var error_data = {
+		"token": null,
+		"error": "Not eligible"
+	}
+	var error_result = Types.ExternalPurchaseCustomLinkTokenResultIOS.from_dict(error_data)
+	_assert_equal(error_result.error, "Not eligible", "from_dict error should match")
 
 
 # ============================================

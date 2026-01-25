@@ -24,7 +24,7 @@ godot-iap is an In-App Purchase plugin for Godot Engine that follows the [OpenIA
 
 ### Version Information
 
-- **Current Version**: 1.3.12
+- **Current Version**: 1.2.3
 - **Godot Compatibility**: 4.3+
 - **iOS Requirements**: iOS 15.0+, Xcode 16+ (Swift 6.0+)
 - **Android Requirements**: API level 24+, Google Play Billing Library v8+
@@ -595,6 +595,23 @@ enum SubscriptionPeriodUnit {
 }
 ```
 
+#### ExternalPurchaseCustomLinkNoticeTypeIOS (v1.3.16, iOS 18.1+)
+
+```gdscript
+enum ExternalPurchaseCustomLinkNoticeTypeIOS {
+    BROWSER = 0   # Notice for browser-based external purchases
+}
+```
+
+#### ExternalPurchaseCustomLinkTokenTypeIOS (v1.3.16, iOS 18.1+)
+
+```gdscript
+enum ExternalPurchaseCustomLinkTokenTypeIOS {
+    ACQUISITION = 0,  # Token for new customer acquisition tracking
+    SERVICES = 1      # Token for existing customer services tracking
+}
+```
+
 ---
 
 ### Input Types
@@ -914,6 +931,28 @@ class VoidResult:
     func to_dict() -> Dictionary
 ```
 
+#### ExternalPurchaseCustomLinkNoticeResultIOS (v1.3.16, iOS 18.1+)
+
+```gdscript
+class ExternalPurchaseCustomLinkNoticeResultIOS:
+    var continued: bool   # True if user chose to continue to external purchase
+    var error: String     # Error message if presentation failed
+
+    static func from_dict(data: Dictionary) -> ExternalPurchaseCustomLinkNoticeResultIOS
+    func to_dict() -> Dictionary
+```
+
+#### ExternalPurchaseCustomLinkTokenResultIOS (v1.3.16, iOS 18.1+)
+
+```gdscript
+class ExternalPurchaseCustomLinkTokenResultIOS:
+    var token: String    # The external purchase token for reporting to Apple
+    var error: String    # Error message if token retrieval failed
+
+    static func from_dict(data: Dictionary) -> ExternalPurchaseCustomLinkTokenResultIOS
+    func to_dict() -> Dictionary
+```
+
 ---
 
 ## iOS-Specific API
@@ -1024,7 +1063,7 @@ func request_purchase_on_promoted_product_ios() -> Types.VoidResult
 
 ### can_present_external_purchase_notice_ios
 
-Check if can present external purchase notice (iOS 18.2+).
+Check if can present external purchase notice (iOS 17.4+).
 
 ```gdscript
 func can_present_external_purchase_notice_ios() -> bool
@@ -1032,7 +1071,7 @@ func can_present_external_purchase_notice_ios() -> bool
 
 ### present_external_purchase_notice_sheet_ios
 
-Present external purchase notice sheet (iOS 18.2+).
+Present external purchase notice sheet (iOS 17.4+).
 
 ```gdscript
 func present_external_purchase_notice_sheet_ios() -> Types.ExternalPurchaseNoticeResultIOS
@@ -1040,7 +1079,7 @@ func present_external_purchase_notice_sheet_ios() -> Types.ExternalPurchaseNotic
 
 ### present_external_purchase_link_ios
 
-Present external purchase link (iOS 18.2+).
+Present external purchase link (iOS 17.4+).
 
 ```gdscript
 func present_external_purchase_link_ios(url: String) -> Types.ExternalPurchaseLinkResultIOS

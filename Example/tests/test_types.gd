@@ -58,6 +58,12 @@ func _run_all_tests() -> void:
 	test_request_purchase_android_props_to_dict()
 	test_request_subscription_android_props_simplified_names()
 
+	# ExternalPurchaseCustomLink types (v1.3.16)
+	test_external_purchase_custom_link_notice_type_ios()
+	test_external_purchase_custom_link_token_type_ios()
+	test_external_purchase_custom_link_notice_result_ios()
+	test_external_purchase_custom_link_token_result_ios()
+
 
 # ============================================
 # ProductRequest Tests
@@ -288,6 +294,54 @@ func test_request_subscription_android_props_simplified_names() -> void:
 	_assert_equal(request.purchase_token, "old_purchase_token", "RequestSubscriptionAndroidProps should have purchase_token (no Android suffix)")
 	_assert_equal(request.replacement_mode, 2, "RequestSubscriptionAndroidProps should have replacement_mode (no Android suffix)")
 	_assert_equal(request.obfuscated_account_id, "user_123", "RequestSubscriptionAndroidProps should have obfuscated_account_id (no Android suffix)")
+
+
+# ============================================
+# ExternalPurchaseCustomLink Tests (v1.3.16)
+# ============================================
+
+func test_external_purchase_custom_link_notice_type_ios() -> void:
+	_assert_equal(Types.ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER, 0, "ExternalPurchaseCustomLinkNoticeTypeIOS.BROWSER should be 0")
+
+
+func test_external_purchase_custom_link_token_type_ios() -> void:
+	_assert_equal(Types.ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION, 0, "ExternalPurchaseCustomLinkTokenTypeIOS.ACQUISITION should be 0")
+	_assert_equal(Types.ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES, 1, "ExternalPurchaseCustomLinkTokenTypeIOS.SERVICES should be 1")
+
+
+func test_external_purchase_custom_link_notice_result_ios() -> void:
+	# Test creation and to_dict
+	var result = Types.ExternalPurchaseCustomLinkNoticeResultIOS.new()
+	result.continued = true
+	result.error = ""
+
+	_assert_equal(result.continued, true, "ExternalPurchaseCustomLinkNoticeResultIOS continued should be true")
+
+	var dict = result.to_dict()
+	_assert_equal(dict["continued"], true, "to_dict continued should match")
+
+	# Test from_dict
+	var from_dict_data = {"continued": false, "error": "User cancelled"}
+	var parsed = Types.ExternalPurchaseCustomLinkNoticeResultIOS.from_dict(from_dict_data)
+	_assert_equal(parsed.continued, false, "from_dict continued should be false")
+	_assert_equal(parsed.error, "User cancelled", "from_dict error should match")
+
+
+func test_external_purchase_custom_link_token_result_ios() -> void:
+	# Test creation and to_dict
+	var result = Types.ExternalPurchaseCustomLinkTokenResultIOS.new()
+	result.token = "abc123token"
+	result.error = ""
+
+	_assert_equal(result.token, "abc123token", "ExternalPurchaseCustomLinkTokenResultIOS token should match")
+
+	var dict = result.to_dict()
+	_assert_equal(dict["token"], "abc123token", "to_dict token should match")
+
+	# Test from_dict
+	var from_dict_data = {"token": "parsed_token", "error": null}
+	var parsed = Types.ExternalPurchaseCustomLinkTokenResultIOS.from_dict(from_dict_data)
+	_assert_equal(parsed.token, "parsed_token", "from_dict token should match")
 
 
 # ============================================

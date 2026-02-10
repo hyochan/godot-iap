@@ -186,6 +186,17 @@ class DiscountOffer:
     var type: DiscountOfferType          # INTRODUCTORY, PROMOTIONAL, ONE_TIME
     var offer_token_android: String      # Required for Android purchase
     var percentage_discount_android: int # Discount percentage (Android)
+    var purchase_option_id_android: String  # v1.2.4+, Billing Library 7.0+
+
+# Installment plan details (v1.2.4+, Billing Library 7.0+)
+class InstallmentPlanDetailsAndroid:
+    var commitment_payments_count: int       # Initial commitment (e.g., 12 months)
+    var subsequent_commitment_payments_count: int  # Renewal commitment
+
+# Pending subscription update (v1.2.4+, Billing Library 5.0+)
+class PendingPurchaseUpdateAndroid:
+    var products: Array[String]   # New products being switched to
+    var purchase_token: String    # Pending transaction token
 
 # Cross-platform subscription offer
 class SubscriptionOffer:

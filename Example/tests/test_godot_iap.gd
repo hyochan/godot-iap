@@ -28,7 +28,7 @@ func _run_all_tests() -> void:
 	test_end_connection_mock()
 
 	# Product tests
-	test_fetch_products_mock()
+	await test_fetch_products_mock()
 
 	# Purchase tests
 	test_get_available_purchases_mock()
@@ -67,7 +67,7 @@ func test_fetch_products_mock() -> void:
 	request.skus = skus
 	request.type = Types.ProductQueryType.IN_APP
 
-	var products = GodotIapPlugin.fetch_products(request)
+	var products = await GodotIapPlugin.fetch_products(request)
 
 	# In mock mode, returns mock products
 	_assert_true(products.size() >= 0, "fetch_products should return an array")

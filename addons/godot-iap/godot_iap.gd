@@ -218,7 +218,8 @@ func is_store_connected() -> bool:
 ## Fetch products from the store
 ## @param request: Types.ProductRequest object
 ## Returns Array of typed product objects (Types.ProductAndroid or Types.ProductIOS)
-## Note: On iOS this awaits the products_fetched signal internally
+## Note: This function is asynchronous and must be called with 'await'.
+## On iOS, it awaits the 'products_fetched' signal internally.
 func fetch_products(request: Types.ProductRequest) -> Array:
 	print("[GodotIap] fetch_products called")
 	var result = await _fetch_products_raw(request.to_dict())
@@ -252,7 +253,6 @@ func _fetch_products_raw(request: Dictionary) -> Dictionary:
 			_native_plugin.fetchProducts(request_json)
 			# Await the signal from Swift native plugin
 			var signal_result: Dictionary = await products_fetched
-			print("[GodotIap] fetchProducts signal result: ", signal_result)
 			var products_array: Array = []
 			if signal_result.get("success", false):
 				var products_json = signal_result.get("productsJson", "[]")

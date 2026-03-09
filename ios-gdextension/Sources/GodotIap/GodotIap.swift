@@ -161,13 +161,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             queryType = .all
         }
 
-        // Use semaphore to wait for async result (like Android's runBlocking)
-        let semaphore = DispatchSemaphore(value: 0)
-        var resultJson = "{\"error\": \"Unknown error\", \"products\": []}"
-
         Task { [weak self] in
-            defer { semaphore.signal() }
-
             do {
                 let request = ProductRequest(skus: skus, type: queryType)
                 let result = try await self?.openIap.fetchProducts(request)
@@ -192,36 +186,15 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     break
                 }
 
-                let responseDict: [String: Any] = ["products": productDicts]
-                if let jsonData = try? JSONSerialization.data(withJSONObject: responseDict),
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    resultJson = jsonString
-                }
-
-                // Also emit signal for listeners
                 await self?.emitProductsFetched(success: true, products: productDicts)
 
             } catch {
                 GodotIapLog.failure("fetchProducts", error: error)
-                let errorDict: [String: Any] = ["error": error.localizedDescription, "products": []]
-                if let jsonData = try? JSONSerialization.data(withJSONObject: errorDict),
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    resultJson = jsonString
-                }
-
                 await self?.emitProductsFetched(success: false, error: error.localizedDescription)
             }
         }
 
-        // Wait for async task to complete (with timeout)
-        let timeout = DispatchTime.now() + .seconds(30)
-        if semaphore.wait(timeout: timeout) == .timedOut {
-            GodotIapLog.failure("fetchProducts", error: NSError(domain: "GodotIap", code: -1, userInfo: [NSLocalizedDescriptionKey: "Request timed out"]))
-            return "{\"error\": \"Request timed out\", \"products\": []}"
-        }
-
-        GodotIapLog.result("fetchProducts", value: resultJson)
-        return resultJson
+        return "{\"status\": \"pending\"}"
     }
 
     // MARK: - Purchase Methods

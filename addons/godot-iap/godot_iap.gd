@@ -218,9 +218,10 @@ func is_store_connected() -> bool:
 ## Fetch products from the store
 ## @param request: Types.ProductRequest object
 ## Returns Array of typed product objects (Types.ProductAndroid or Types.ProductIOS)
+## Note: On iOS this awaits the products_fetched signal internally
 func fetch_products(request: Types.ProductRequest) -> Array:
 	print("[GodotIap] fetch_products called")
-	var result = _fetch_products_raw(request.to_dict())
+	var result = await _fetch_products_raw(request.to_dict())
 	var products: Array = []
 
 	if result.has("products"):
@@ -238,7 +239,7 @@ func _fetch_products_raw(request: Dictionary) -> Dictionary:
 	print("[GodotIap] _fetch_products_raw called with: ", request)
 	if _native_plugin:
 		var request_json = JSON.stringify(request)
-		if _platform == "Android" or _platform == "iOS":
+		if _platform == "Android":
 			print("[GodotIap] Calling fetchProducts with: ", request_json)
 			var result_json = _native_plugin.fetchProducts(request_json)
 			print("[GodotIap] fetchProducts result: ", result_json)
@@ -246,6 +247,22 @@ func _fetch_products_raw(request: Dictionary) -> Dictionary:
 			if result is Dictionary:
 				return result
 			return { "products": [], "error": "Parse error" }
+		elif _platform == "iOS":
+			print("[GodotIap] Calling fetchProducts with: ", request_json)
+			_native_plugin.fetchProducts(request_json)
+			# Await the signal from Swift native plugin
+			var signal_result: Dictionary = await products_fetched
+			print("[GodotIap] fetchProducts signal result: ", signal_result)
+			var products_array: Array = []
+			if signal_result.get("success", false):
+				var products_json = signal_result.get("productsJson", "[]")
+				var parsed = JSON.parse_string(products_json)
+				if parsed is Array:
+					products_array = parsed
+			return {
+				"products": products_array,
+				"error": signal_result.get("error", "")
+			}
 	# Mock mode
 	return { "products": [], "subscriptions": [] }
 

@@ -70,6 +70,9 @@ docs/node_modules/
 # Android binaries are committed to git (like iOS frameworks) for Asset Library compatibility
 # addons/godot-iap/android/*.aar - TRACKED
 
+# Old Android binaries in bin/ (deprecated location, use addons/godot-iap/android/ instead)
+addons/godot-iap/bin/android/
+
 # iOS frameworks are committed to git for faster CI builds
 # addons/godot-iap/bin/ios/ - TRACKED
 

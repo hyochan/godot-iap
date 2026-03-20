@@ -28,7 +28,7 @@ android/.gradle/
 android/build/
 android/local.properties
 android/libs/
-*.aar
+android/*.aar
 
 # iOS - Old native plugin (deprecated, now using GDExtension)
 /ios/
@@ -67,8 +67,8 @@ Thumbs.db
 docs/.docusaurus/
 docs/node_modules/
 
-# Android binaries (built locally, not committed)
-addons/godot-iap/android/*.aar
+# Android binaries are committed to git (like iOS frameworks) for Asset Library compatibility
+# addons/godot-iap/android/*.aar - TRACKED
 
 # iOS frameworks are committed to git for faster CI builds
 # addons/godot-iap/bin/ios/ - TRACKED

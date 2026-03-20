@@ -42,4 +42,15 @@ if [ -f "$PLUGIN_FILE" ]; then
     echo "Updated: Example/addons/godot-iap/godot_iap_plugin.gd"
 fi
 
+# Update GDAP file Android dependencies
+GDAP_FILE="$PROJECT_ROOT/addons/godot-iap/android/GodotIap.gdap"
+if [ -f "$GDAP_FILE" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/openiap-google:[0-9.]*\"/openiap-google:$GOOGLE_VERSION\"/g" "$GDAP_FILE"
+    else
+        sed -i "s/openiap-google:[0-9.]*\"/openiap-google:$GOOGLE_VERSION\"/g" "$GDAP_FILE"
+    fi
+    echo "Updated: addons/godot-iap/android/GodotIap.gdap"
+fi
+
 echo "Version sync complete!"

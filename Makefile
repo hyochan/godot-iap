@@ -10,6 +10,7 @@
 
 GODOT_VERSION ?= 4.3
 GODOT_LIB_URL = https://github.com/godotengine/godot/releases/download/$(GODOT_VERSION)-stable/godot-lib.$(GODOT_VERSION).stable.template_release.aar
+SWIFT_GODOT_VERSION ?= v0.74.0
 
 # Directories
 PROJECT_ROOT := $(shell pwd)
@@ -82,6 +83,14 @@ setup:
 	else \
 		echo "$(GREEN)✓ godot-lib.aar already exists$(NC)"; \
 	fi
+	@if [ ! -d "$(PROJECT_ROOT)/SwiftGodot" ]; then \
+		echo "$(YELLOW)Cloning SwiftGodot ($(SWIFT_GODOT_VERSION))...$(NC)"; \
+		git clone --depth 1 --branch $(SWIFT_GODOT_VERSION) https://github.com/migueldeicaza/SwiftGodot.git "$(PROJECT_ROOT)/SwiftGodot" || \
+		(echo "$(RED)Failed to clone SwiftGodot$(NC)" && exit 1); \
+		echo "$(GREEN)✓ SwiftGodot cloned$(NC)"; \
+	else \
+		echo "$(GREEN)✓ SwiftGodot already exists$(NC)"; \
+	fi
 	@echo "$(GREEN)Installing git hooks...$(NC)"
 	@$(PROJECT_ROOT)/scripts/install-hooks.sh
 	@echo "$(GREEN)Setup complete!$(NC)"
@@ -120,6 +129,16 @@ macos-build:
 android: setup gradle-wrapper
 	@echo "$(GREEN)Building Android plugin...$(NC)"
 	@cd $(ANDROID_DIR) && ./gradlew copyReleaseAarToAddons
+	@echo "$(GREEN)Generating GDAP file...$(NC)"
+	@OPENIAP_VERSION=$$(cat $(PROJECT_ROOT)/openiap-versions.json | grep '"google"' | cut -d'"' -f4); \
+	echo "[config]" > $(ADDON_DIR)/android/GodotIap.gdap; \
+	echo 'name="GodotIap"' >> $(ADDON_DIR)/android/GodotIap.gdap; \
+	echo 'binary_type="local"' >> $(ADDON_DIR)/android/GodotIap.gdap; \
+	echo 'binary="GodotIap.release.aar"' >> $(ADDON_DIR)/android/GodotIap.gdap; \
+	echo "" >> $(ADDON_DIR)/android/GodotIap.gdap; \
+	echo "[dependencies]" >> $(ADDON_DIR)/android/GodotIap.gdap; \
+	echo "local=[]" >> $(ADDON_DIR)/android/GodotIap.gdap; \
+	echo "remote=[\"com.android.billingclient:billing:7.1.1\", \"io.github.hyochan.openiap:openiap-google:$$OPENIAP_VERSION\"]" >> $(ADDON_DIR)/android/GodotIap.gdap
 	@echo "$(GREEN)✓ Android plugin built$(NC)"
 	@echo "Output: $(ADDON_DIR)/android/"
 	@ls -la $(ADDON_DIR)/android/*.aar 2>/dev/null || echo "  (AAR files will appear after successful build)"

@@ -25,6 +25,7 @@ if [ -n "$VERSIONS_CHANGED" ]; then
         # Stage the updated files
         git add "$PROJECT_ROOT/addons/godot-iap/godot_iap_plugin.gd" 2>/dev/null
         git add "$PROJECT_ROOT/Example/addons/godot-iap/godot_iap_plugin.gd" 2>/dev/null
+        git add "$PROJECT_ROOT/addons/godot-iap/android/GodotIap.gdap" 2>/dev/null
         echo -e "${GREEN}✓ Version sync complete${NC}"
     fi
     echo ""

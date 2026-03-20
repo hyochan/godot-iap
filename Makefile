@@ -130,15 +130,17 @@ android: setup gradle-wrapper
 	@echo "$(GREEN)Building Android plugin...$(NC)"
 	@cd $(ANDROID_DIR) && ./gradlew copyReleaseAarToAddons
 	@echo "$(GREEN)Generating GDAP file...$(NC)"
-	@OPENIAP_VERSION=$$(cat $(PROJECT_ROOT)/openiap-versions.json | grep '"google"' | cut -d'"' -f4); \
-	echo "[config]" > $(ADDON_DIR)/android/GodotIap.gdap; \
-	echo 'name="GodotIap"' >> $(ADDON_DIR)/android/GodotIap.gdap; \
-	echo 'binary_type="local"' >> $(ADDON_DIR)/android/GodotIap.gdap; \
-	echo 'binary="GodotIap.release.aar"' >> $(ADDON_DIR)/android/GodotIap.gdap; \
-	echo "" >> $(ADDON_DIR)/android/GodotIap.gdap; \
-	echo "[dependencies]" >> $(ADDON_DIR)/android/GodotIap.gdap; \
-	echo "local=[]" >> $(ADDON_DIR)/android/GodotIap.gdap; \
-	echo "remote=[\"com.android.billingclient:billing:7.1.1\", \"io.github.hyochan.openiap:openiap-google:$$OPENIAP_VERSION\"]" >> $(ADDON_DIR)/android/GodotIap.gdap
+	@OPENIAP_VERSION=$$(python3 -c "import json; print(json.load(open('$(PROJECT_ROOT)/openiap-versions.json'))['google'])"); \
+	printf '%s\n' \
+		'[config]' \
+		'name="GodotIap"' \
+		'binary_type="local"' \
+		'binary="GodotIap.release.aar"' \
+		'' \
+		'[dependencies]' \
+		'local=[]' \
+		"remote=[\"com.android.billingclient:billing:7.1.1\", \"io.github.hyochan.openiap:openiap-google:$$OPENIAP_VERSION\"]" \
+	> $(ADDON_DIR)/android/GodotIap.gdap
 	@echo "$(GREEN)✓ Android plugin built$(NC)"
 	@echo "Output: $(ADDON_DIR)/android/"
 	@ls -la $(ADDON_DIR)/android/*.aar 2>/dev/null || echo "  (AAR files will appear after successful build)"

@@ -14,7 +14,7 @@ val openiapGoogleVersion = openiapVersions["google"] as String
 
 android {
     namespace = pluginPackageName
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24

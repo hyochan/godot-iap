@@ -1,3 +1,7 @@
+> **⚠️ This repository has moved to the [OpenIAP monorepo](https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap).**
+> This repository is deprecated and will be archived soon. All future development happens in the monorepo.
+> Please see the [announcement](https://github.com/hyochan/godot-iap/discussions/29) for details.
+
 # godot-iap
 
 <div align="center">

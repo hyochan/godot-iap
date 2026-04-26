@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkgodot_iap_docs=globalThis.webpackChunkgodot_iap_docs||[]).push([[1903],{1912(o){o.exports=JSON.parse('{"blogBasePath":"/godot-iap/blog","blogTitle":"Blog","authorsListPath":"/godot-iap/blog/authors"}')}}]);

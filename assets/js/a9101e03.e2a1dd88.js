@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkgodot_iap_docs=globalThis.webpackChunkgodot_iap_docs||[]).push([[5779],{3454(o){o.exports=JSON.parse('{"metadata":{"permalink":"/godot-iap/blog","page":1,"postsPerPage":10,"totalPages":1,"totalCount":6,"blogDescription":"Blog","blogTitle":"Blog"}}')}}]);

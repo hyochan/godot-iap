@@ -236,7 +236,7 @@ func _verify_with_iapkit(purchase) -> bool:
 
     var headers = [
         "Content-Type: application/json",
-        "Authorization: Bearer YOUR_IAPKIT_API_KEY"  # Get from iapkit.com
+        "Authorization: Bearer YOUR_IAPKIT_API_KEY"  # Get from kit.openiap.dev
     ]
 
     var purchase_token = ""
@@ -504,7 +504,7 @@ for product in products:
 
 For production apps, we recommend using <IapKitLink>IAPKit</IapKitLink> for server-side purchase verification. The example above includes `_verify_with_iapkit()` which calls IAPKit's verification API.
 
-Get your API key at <IapKitLink>iapkit.com</IapKitLink>.
+Get your API key at <IapKitLink>kit.openiap.dev</IapKitLink>.
 
 ## See Also
 

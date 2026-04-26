@@ -325,7 +325,7 @@ func _verify_with_iapkit(purchase: Dictionary) -> bool:
 
     var headers = [
         "Content-Type: application/json",
-        "Authorization: Bearer YOUR_IAPKIT_API_KEY"  # Get from iapkit.com
+        "Authorization: Bearer YOUR_IAPKIT_API_KEY"  # Get from kit.openiap.dev
     ]
 
     var body = {}
@@ -566,7 +566,7 @@ IAPKit provides:
 - **Grace period handling** for billing issues
 - **Cross-platform verification** for iOS and Android
 
-Get your API key at <IapKitLink>iapkit.com</IapKitLink>.
+Get your API key at <IapKitLink>kit.openiap.dev</IapKitLink>.
 
 ## See Also
 
